@@ -1,0 +1,719 @@
+.club {
+  display: grid;
+  gap: 22px;
+}
+
+.club h3 {
+  font-family: Argentum, "Work Sans", sans-serif;
+  font-weight: 800;
+  font-size: 24px;
+  line-height: 1.1;
+  letter-spacing: -0.005em;
+  color: var(--navy);
+}
+
+.club h4 {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--navy);
+}
+
+.club p {
+  color: var(--text-2);
+  font-size: 14px;
+}
+
+.club small {
+  display: block;
+}
+
+/* Star total: the masthead's one big number. */
+.star-total {
+  display: grid;
+  gap: 6px;
+  text-align: right;
+}
+
+.star-total strong {
+  font-family: Argentum, "Work Sans", sans-serif;
+  font-weight: 800;
+  font-size: 128px;
+  line-height: 0.85;
+  letter-spacing: -0.03em;
+  color: var(--gold);
+  text-shadow: 0 18px 40px rgba(2, 3, 15, 0.35);
+}
+
+.star-total > span {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #fff;
+  margin-top: 8px;
+}
+
+.star-total small {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+/* Stats: one joined strip of the website's pastel tiles. */
+.club-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-radius: var(--r-card);
+  overflow: hidden;
+}
+
+.club-stats article {
+  padding: 24px 28px;
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  background: var(--sky);
+}
+
+.club-stats article:nth-child(2) {
+  background: var(--mint);
+}
+
+.club-stats article:nth-child(3) {
+  background: var(--lime);
+}
+
+.club-stats article:nth-child(4) {
+  background: #dfe8fb;
+}
+
+.club-stats strong {
+  font-family: Argentum, "Work Sans", sans-serif;
+  font-weight: 800;
+  font-size: 48px;
+  color: var(--ink);
+  line-height: 0.95;
+}
+
+.club-stats b {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* Tabs */
+
+.club-tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 5px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  justify-self: start;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.club-tabs button {
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: transparent;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-2);
+  transition:
+    background 0.15s,
+    color 0.15s,
+    transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.club-tabs button[aria-pressed="true"] {
+  background: var(--navy);
+  color: #fff;
+}
+
+/* Panels + forms */
+
+.club-two {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 18px;
+}
+
+.club-panel {
+  padding: 28px;
+  min-width: 0;
+}
+
+.club-panel h3 {
+  margin-bottom: 6px;
+}
+
+.club-panel h4 {
+  margin-top: 20px;
+}
+
+.club-panel label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--navy);
+  margin: 16px 0 10px;
+}
+
+.club input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--navy);
+}
+
+.club-panel label.club-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.club-panel fieldset {
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  padding: 6px 14px 10px;
+  margin: 16px 0;
+}
+
+.club-panel legend {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-3);
+  padding: 0 6px;
+}
+
+.club .button {
+  white-space: normal;
+}
+
+.club-panel form {
+  margin: 12px 0;
+}
+
+.club-section-title {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+
+.club-section-title > span {
+  color: var(--text-3);
+  font-size: 13px;
+  margin-left: auto;
+}
+
+.club-hint {
+  font-size: 12px !important;
+  color: var(--text-3) !important;
+  margin: 12px 0 !important;
+}
+
+/* Next milestone: an ink card carrying the logo's A, like the website. */
+.club-milestone {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 14px;
+  background: var(--ink);
+  border-color: transparent;
+  color: #fff;
+}
+
+.club-milestone::before {
+  content: "";
+  position: absolute;
+  width: 360px;
+  height: 330px;
+  right: -90px;
+  bottom: -80px;
+  background: var(--chevron) no-repeat center / contain;
+  opacity: 0.05;
+  pointer-events: none;
+}
+
+.club-milestone > * {
+  position: relative;
+}
+
+.club-milestone .eyebrow {
+  color: var(--gold);
+}
+
+.club-milestone h3 {
+  font-size: 36px;
+  color: var(--cyan);
+}
+
+.club-milestone p {
+  color: rgba(255, 255, 255, 0.76);
+}
+
+.club-milestone .meter {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.club progress {
+  width: 100%;
+  height: 10px;
+  accent-color: var(--gold);
+}
+
+.club-callout {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 16px 18px;
+  margin-top: auto;
+}
+
+.club-callout p {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.club-callout b {
+  color: #fff;
+}
+
+/* Stations */
+
+.club-stations {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.club-stations button {
+  text-align: left;
+  background: var(--surface-2);
+  border: 1.5px solid transparent;
+  border-radius: var(--r-card);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s,
+    background 0.15s,
+    transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.club-stations strong {
+  font-family: Argentum, "Work Sans", sans-serif;
+  font-weight: 800;
+  font-size: 36px;
+  line-height: 1;
+  color: var(--navy);
+  margin-top: 8px;
+}
+
+.club-stations strong span {
+  font-family: "Work Sans", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.club-stations small {
+  font-size: 12px;
+  color: var(--text-3);
+  line-height: 1.4;
+}
+
+.club-block-heading {
+  margin-top: 18px;
+}
+
+/* Milestones */
+
+.club-badges {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 44px;
+  padding: 6px 28px;
+}
+
+.club-badges article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 6px 12px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.club-badges article:nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+
+.club-badges h4 {
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+.club-badges .meter {
+  grid-column: 1 / -1;
+}
+
+.club-badges p {
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.club-badges small {
+  grid-row: 1;
+  grid-column: 2;
+  font-size: 12px;
+  font-weight: 700;
+  color: #8a5d00;
+}
+
+.club-badges article.earned p {
+  color: var(--royal-bright);
+  font-weight: 700;
+}
+
+/* Ledger */
+
+.club-ledger > div {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.club-ledger > div > span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.club-ledger > div > b {
+  flex-shrink: 0;
+  font-family: Argentum, "Work Sans", sans-serif;
+  font-weight: 800;
+  font-size: 20px;
+  color: var(--navy);
+}
+
+.club-ledger small {
+  font-size: 12px;
+  color: var(--text-3);
+  margin-top: 3px;
+}
+
+/* Crowns + prizes */
+
+.club-crowns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.club-crowns article {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.club-crowns strong {
+  font-family: Argentum, "Work Sans", sans-serif;
+  font-weight: 800;
+  font-size: 24px;
+  color: var(--navy);
+  overflow-wrap: anywhere;
+}
+
+.club-feedback {
+  background: var(--mint);
+  color: var(--ink);
+  padding: 14px 18px;
+  border-radius: 14px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.club-praise {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.club-praise button {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  text-align: left;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--lime);
+  border: 1.5px solid transparent;
+  font-weight: 600;
+  color: var(--navy);
+  transition:
+    border-color 0.15s,
+    transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.club-praise b {
+  margin-left: auto;
+  color: #8a5d00;
+}
+
+.club-claim {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.club-claim > span {
+  flex: 1;
+  min-width: 150px;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+  color: var(--navy);
+}
+
+.club-claim small {
+  font-size: 12px;
+  color: var(--text-3);
+  font-weight: 500;
+}
+
+/* QR */
+
+.club-qr-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.club-qr {
+  padding: 18px;
+  border: 1.5px solid var(--line);
+  border-radius: 18px;
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: 8px;
+}
+
+.club-qr img {
+  max-width: 100%;
+  height: auto;
+}
+
+.club-qr strong {
+  font-family: Argentum, "Work Sans", sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--navy);
+}
+
+.club-qr a {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--navy);
+  overflow-wrap: anywhere;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+/* Rules */
+
+.club-rule-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 20px 0;
+}
+
+.club-rule-grid b {
+  display: block;
+  font-family: Argentum, "Work Sans", sans-serif;
+  font-weight: 800;
+  font-size: 28px;
+  color: var(--navy);
+}
+
+.club-rule-grid span {
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.club summary {
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--navy);
+  transition: transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* Hover only where a real pointer can hover; touch keeps the press scale. */
+@media (hover: hover) and (pointer: fine) {
+  .club-tabs button:hover {
+    color: var(--navy);
+  }
+
+  .club-stations button:hover {
+    background: #fff;
+    border-color: var(--line-strong);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+
+  .club-praise button:hover {
+    border-color: var(--mint-deep);
+  }
+}
+
+.club-tabs button:active,
+.club-stations button:active,
+.club-praise button:active,
+.club summary:active {
+  transform: scale(0.97);
+}
+
+.club-more {
+  margin-top: 14px;
+}
+
+.club details[open] summary {
+  margin-bottom: 10px;
+}
+
+.club-empty {
+  padding: 14px 0;
+  color: var(--text-3) !important;
+}
+
+.club-preferences {
+  max-width: 560px;
+}
+
+@media (max-width: 1080px) {
+  .club-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .club-stations {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .club-crowns,
+  .club-qr-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .club-two {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .star-total {
+    text-align: left;
+  }
+
+  .star-total strong {
+    font-size: 84px;
+  }
+
+  .club-panel {
+    padding: 20px;
+  }
+
+  .club-stations {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .club-badges {
+    grid-template-columns: 1fr;
+    padding: 4px 20px;
+  }
+
+  .club-badges article:nth-last-child(2) {
+    border-bottom: 1px solid var(--line);
+  }
+
+  .club-stats article {
+    padding: 18px 18px;
+  }
+
+  .club-stats strong {
+    font-size: 38px;
+  }
+
+  .club-tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    max-width: 100%;
+    scrollbar-width: none;
+    scroll-snap-type: x proximity;
+    scroll-padding-inline: 8px;
+    overscroll-behavior-x: contain;
+  }
+
+  .club-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .club-tabs button {
+    padding: 9px 14px;
+    font-size: 13px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    scroll-snap-align: start;
+  }
+
+  .club-crowns,
+  .club-qr-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .club-rule-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .club-stations button {
+    padding: 16px;
+  }
+
+  .club-stations strong {
+    font-size: 30px;
+  }
+
+  .club-milestone h3 {
+    font-size: 30px;
+  }
+
+  .club-claim .button {
+    flex: 1;
+  }
+}
