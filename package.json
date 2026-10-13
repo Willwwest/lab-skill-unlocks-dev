@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
-    "test": "node --test src/domain.test.js src/club.test.js src/floor.test.js src/auth.test.js src/gym.test.js src/insights.test.js src/ds.test.js src/layout.test.js src/staffing.test.js",
+    "test": "node --test src/domain.test.js src/club.test.js src/floor.test.js src/auth.test.js src/gym.test.js src/insights.test.js src/ds.test.js src/layout.test.js src/tvs.test.js src/demoday.test.js src/staffing.test.js src/classcoaches.test.js",
     "preview": "vite preview --host 127.0.0.1",
     "test:ui": "vitest run",
     "format": "prettier --write \"src/**/*.{js,jsx}\"",

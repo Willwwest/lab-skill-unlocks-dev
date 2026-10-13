@@ -34,6 +34,13 @@ const SYSTEM_FILES = [
   "./LayoutEditor.jsx",
   "./floorScene.js",
   "./layout.js",
+  "./desktv.css",
+  "./DeskTV.jsx",
+  "./FloorMap.jsx",
+  "./tvs.js",
+  "./tvkit.js",
+  "./demoday.js",
+  "./DemoBar.jsx",
 ];
 
 test("tokens.js mirrors tokens.css", () => {

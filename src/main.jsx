@@ -52,6 +52,8 @@ const CoachApp = lazy(() => import("./CoachApp.jsx"));
 const Kiosk = lazy(() => import("./Kiosk.jsx"));
 // The TV floor board carries three.js; only ?tv loads it.
 const FloorTV = lazy(() => import("./FloorTV.jsx"));
+// The TV channels: ?tv is the floor board, ?tv=desk the front desk screen.
+const DeskTV = lazy(() => import("./DeskTV.jsx"));
 const StyleGuide = lazy(() => import("./ds/StyleGuide.jsx"));
 import Family, { MomentsGallery } from "./Family.jsx";
 import Login from "./Login.jsx";
@@ -440,6 +442,12 @@ function App() {
     return (
       <Suspense fallback={<div className="cc-loading" />}>
         <StyleGuide />
+      </Suspense>
+    );
+  if (new URLSearchParams(window.location.search).get("tv") === "desk")
+    return (
+      <Suspense fallback={<div className="cc-loading" />}>
+        <DeskTV state={state} />
       </Suspense>
     );
   if (params.has("tv"))

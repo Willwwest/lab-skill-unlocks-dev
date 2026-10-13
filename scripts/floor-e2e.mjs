@@ -109,15 +109,20 @@ const board = async (page, at) => {
     await page.getByRole("region", { name: "Unsaved changes" }).waitFor();
   });
   await h.step("rotates the court a quarter, by button and by the R key", async () => {
-    await page.getByText(/faces the front/).waitFor();
+    // Each quarter turn moves the facing one step clockwise and swaps width
+    // and depth; four turns come back to the start.
+    const order = ["the front", "the left wall", "the back wall", "the right wall"];
+    const note = () => page.getByText(/\d+ × \d+ ft at .* · faces /).first().textContent();
+    const read = async () => {
+      const t = await note();
+      const [, w, d] = t.match(/(\d+) × (\d+)/);
+      return { w, d, facing: order.findIndex((f) => t.endsWith(f)) };
+    };
+    const start = await read();
     await page.getByRole("button", { name: "Rotate a quarter turn (R)" }).click();
-    await page.getByText(/56 × 29|29 × 56/).waitFor();
-    await page.getByText(/faces the left wall/).waitFor();
-    await page.getByRole("application").press("r");
-    await page.getByText(/faces the back wall/).waitFor();
-    await page.getByRole("application").press("r");
-    await page.getByRole("application").press("r");
-    await page.getByText(/faces the front/).waitFor();
+    await page.getByText(new RegExp(`${start.d} × ${start.w} ft .* faces ${order[(start.facing + 1) % 4]}`)).waitFor();
+    for (const key of ["r", "r", "r"]) await page.getByRole("application").press(key);
+    await page.getByText(new RegExp(`${start.w} × ${start.d} ft .* faces ${order[start.facing]}`)).waitFor();
   });
   await h.step("the treadmill and bike games carry a note for the TV", async () => {
     await page.locator(".lay-zone", { hasText: "Treadmill & bike games" }).locator("rect").click();
@@ -140,6 +145,120 @@ const board = async (page, at) => {
     await page.goto(`${BASE}?tv&edit`);
     await page.getByText("Sign in as Charlie, Ally or Travis").waitFor();
   });
+}
+
+// The front desk TV, with a few opted-in kids so crowns and shoutouts show.
+async function seedDesk(page) {
+  await seed(page);
+  await page.evaluate(() => {
+    const s = JSON.parse(localStorage.getItem("lab-skill-unlocks-v1"));
+    const at = new Date().toISOString();
+    const day = at.slice(0, 10);
+    s.club.profiles = {
+      theo: { optIn: true, alias: "Turbo Theo", group: "6–8 / Foundations" },
+      maya: { optIn: true, alias: "Maya the Mighty", group: "9–12 / Foundations" },
+      leo: { optIn: false, alias: "", group: "6–8 / Foundations" },
+    };
+    const ev = (id, childId, kind, extra) => ({ id, childId, kind, status: "approved", at, session: `${day}:2`, ...extra });
+    s.club.events = [
+      ev("c1", "theo", "complete", { station: "court" }),
+      ev("c2", "maya", "complete", { station: "wall" }),
+      ev("c3", "leo", "complete", { station: "grip" }),
+      ev("p1", "maya", "praise", { category: "Kept trying", coach: "Coach Sam" }),
+      ev("p2", "leo", "praise", { category: "Brave first try", coach: "Coach Sam" }),
+    ];
+    localStorage.setItem("lab-skill-unlocks-v1", JSON.stringify(s));
+  });
+}
+{
+  const { page, h } = await kit.page("tv", { label: "desk" });
+  await seedDesk(page);
+  await h.step("during a class, only free equipment earns points on the strip", async () => {
+    await page.goto(`${BASE}?tv=desk&at=10:20`);
+    await page.locator(".dtv-schedule li.is-live", { hasText: "Homeschool ninja" }).waitFor();
+    await page.locator(".dtv-schedule li.is-live em", { hasText: "Now" }).waitFor();
+    const where = await page.locator(".dtv-move footer span").allTextContents();
+    if (!where.length || where.some((w) => !w.startsWith("Basketball court")))
+      throw Error(`moves outside the free court: ${where.join(", ")}`);
+  });
+  await h.step("in open gym the strip shows five movements across the floor", async () => {
+    await page.goto(`${BASE}?tv=desk&at=13:00`);
+    await page.locator(".dtv-move").nth(4).waitFor();
+    await page.locator(".ftv-label:not(.is-minor)").first().waitFor();
+    await page.waitForTimeout(2500);
+  });
+  await h.shot("open-gym", { full: false });
+  await h.step("the strip turns to crowns and shoutouts, opted-in nicknames only", async () => {
+    await page.locator(".dtv-strip h2", { hasText: "This week's crowns" }).waitFor({ timeout: 20000 });
+    await page.locator(".dtv-crown", { hasText: "Turbo Theo" }).waitFor();
+    if (await page.locator(".dtv-crown", { hasText: "Monkey bars" }).count())
+      throw Error("Leo isn't opted in, so grip has no crown");
+    await h.shot("crowns", { full: false });
+    await page.locator(".dtv-strip h2", { hasText: "Coach shoutouts" }).waitFor({ timeout: 20000 });
+    await page.locator(".dtv-shout", { hasText: "Maya the Mighty" }).waitFor();
+    if (await page.locator(".dtv-shout", { hasText: "Brave first try" }).count())
+      throw Error("Leo's shoutout shouldn't show");
+  });
+  await h.shot("shoutouts", { full: false });
+  await h.step("closed, the strip says when points open up", async () => {
+    await page.goto(`${BASE}?tv=desk&at=08:00`);
+    await page.getByText("Points open up when the gym does.").waitFor();
+  });
+}
+{
+  const { page, h } = await kit.page("phone", { label: "desk", reducedMotion: "reduce" });
+  await seedDesk(page);
+  await h.step("the desk screen stacks on a phone", async () => {
+    await page.goto(`${BASE}?tv=desk&at=13:00`);
+    await page.locator(".dtv-move").first().waitFor();
+  });
+  await h.overflow("desk", [".ftv-labels", ".ftv-canvas"]);
+  await h.shot("desk", { full: true });
+}
+
+// The demo day: pause it, jump the timeline to each moment, check the line.
+{
+  const { page, h } = await kit.page("tv", { label: "demo" });
+  await seed(page);
+  const START = 9 * 60 + 45;
+  const END = 20 * 60 + 30;
+  const jump = async (hhmm) => {
+    const [hr, mn] = hhmm.split(":").map(Number);
+    const box = await page.locator(".tv-demo-track").boundingBox();
+    const f = (hr * 60 + mn + 0.5 - START) / (END - START);
+    await page.mouse.click(box.x + box.width * f, box.y + box.height / 2);
+    await page.locator(".tv-demo time", { hasText: `${hr % 12 || 12}:${String(mn).padStart(2, "0")}` }).waitFor();
+    await page.waitForTimeout(1800);
+  };
+  await h.step("the demo day opens paused-able on the desk screen", async () => {
+    await page.goto(`${BASE}?tv=desk&demo`);
+    await page.getByRole("region", { name: "Demo day" }).waitFor();
+    await page.getByRole("button", { name: "Pause the demo" }).click();
+    await page.getByRole("button", { name: "Play the demo" }).waitFor();
+  });
+  for (const [t, line, name] of [
+    ["9:50", /^Closed/, "closed"],
+    ["10:30", /Homeschool ninja is running/, "class"],
+    ["13:15", /^Open gym/, "open-gym"],
+    ["14:15", /paused/, "pause"],
+    ["15:10", /starts soon/, "soon"],
+  ]) {
+    await h.step(`at ${t} the zones and the line say what's happening`, async () => {
+      await jump(t);
+      const text = await page.locator(".tv-demo p").textContent();
+      if (!line.test(text)) throw Error(`at ${t}: ${text}`);
+    });
+    await h.shot(`desk-${name}`, { full: false });
+  }
+  await h.step("the floor board runs the same demo day", async () => {
+    await page.goto(`${BASE}?tv&demo`);
+    await page.getByRole("button", { name: "Pause the demo" }).click();
+    await jump("10:30");
+    await page.locator(".ftv-block.is-class", { hasText: "Homeschool ninja" }).waitFor();
+    if (await page.getByRole("button", { name: "Edit floor" }).count())
+      throw Error("no editing during the demo");
+  });
+  await h.shot("floor-class", { full: false });
 }
 
 for (const size of ["laptop", "phone"]) {
