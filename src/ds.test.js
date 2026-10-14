@@ -41,6 +41,8 @@ const SYSTEM_FILES = [
   "./tvkit.js",
   "./demoday.js",
   "./DemoBar.jsx",
+  "./flooruse.js",
+  "./FloorUseEditor.jsx",
 ];
 
 test("tokens.js mirrors tokens.css", () => {

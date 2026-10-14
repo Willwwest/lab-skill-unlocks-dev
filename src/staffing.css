@@ -497,3 +497,48 @@
 .st-page .cf-hero-tabs {
   max-width: 100%;
 }
+
+/* By the hour on a phone: time runs down, one column per coach. */
+.st-grid-phone {
+  display: none;
+}
+@media (max-width: 600px) {
+  .st-grid-wide {
+    display: none;
+  }
+  .st-grid-phone {
+    display: block;
+  }
+}
+.st-gridv {
+  position: relative;
+  width: 100%;
+  table-layout: fixed;
+}
+.st-gridv thead th {
+  text-align: center;
+  padding-bottom: var(--ds-space-2);
+}
+.st-gridv td {
+  min-width: 0;
+  height: 22px;
+}
+.st-gridv .st-gridv-time {
+  width: 52px;
+  font-size: var(--ds-text-label);
+  font-weight: 700;
+  color: var(--ds-text-3);
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+}
+.st-gridv tr.st-grid-now td {
+  outline: 2px solid var(--ds-navy);
+  outline-offset: 0;
+}
+.st-gridv tr.st-grid-now .st-gridv-time {
+  color: var(--ds-navy);
+}
+.st-crew-mark small {
+  font-size: inherit;
+}

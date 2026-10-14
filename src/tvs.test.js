@@ -4,6 +4,7 @@ import { seed } from "./domain.js";
 import { emptyClub } from "./club.js";
 import { applyFloor, emptyFloor, stationFor } from "./floor.js";
 import { seedGym } from "./gym.js";
+import { floorStatus } from "./layout.js";
 import {
   earnNow,
   skillPoints,
@@ -38,14 +39,21 @@ test("the schedule lists the day in order with what's live", () => {
 });
 
 test("during a class, only equipment the class isn't using earns points on the board", () => {
-  // Homeschool ninja holds grip, wall, movement and course; the court is free.
+  // Homeschool ninja holds its marked zones (grip lanes, WW, vault blocks,
+  // course lanes); the court, advanced rig, track wall and beam stay free.
+  const held = new Set(
+    floorStatus(base(), at("10:20"))
+      .zones.filter((z) => z.status === "class")
+      .map((z) => z.id),
+  );
   const items = earnNow(base(), at("10:20"));
   assert.ok(items.length > 0);
   for (const i of items) {
-    assert.equal(i.station, "court");
-    assert.equal(stationFor(i.skill), "court");
+    assert.ok(!held.has(i.zone.id), i.zone.name);
+    assert.equal(stationFor(i.skill), i.station);
     assert.equal(i.points, skillPoints(i.skill));
   }
+  assert.ok(items.some((i) => i.zone.id === "advanced"));
 });
 
 test("in open gym the strip spreads across all five stations", () => {
@@ -64,8 +72,10 @@ test("nothing to earn when the gym is closed or a station is paused", () => {
     at("12:30"),
   );
   assert.ok(earnNow(paused, at("13:00")).every((i) => i.station !== "court"));
-  // During the class, the court was the only open station.
-  assert.deepEqual(earnNow(paused, at("10:20")), []);
+  // During the class the court stays out; the free parts of the rig don't.
+  const during = earnNow(paused, at("10:20"));
+  assert.ok(during.length > 0);
+  assert.ok(during.every((i) => i.station !== "court"));
 });
 
 const withClub = (events) => {

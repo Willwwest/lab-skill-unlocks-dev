@@ -584,7 +584,10 @@ export function createFloorScene(canvas, { reducedMotion = false } = {}) {
       const l = look[z.status] ?? look.amenity;
       z.plinth.material.color.copy(l.fill);
       // Open now but a class takes it soon: the open fill, a gold edge.
-      const edge = z.status === "open" && z.soon ? soonEdge : l.edge;
+      const edge =
+        (z.status === "open" || z.status === "amenity") && z.soon
+          ? soonEdge
+          : l.edge;
       z.edgeMat.color.copy(id === selected ? selectedEdge : edge);
     }
   }

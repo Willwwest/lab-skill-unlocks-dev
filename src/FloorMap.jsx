@@ -12,7 +12,8 @@ export const rank = { class: 0, paused: 1, open: 2, amenity: 3, closed: 4 };
 
 // On the map a word is enough; the screen around it carries the detail.
 function labelLine(z) {
-  if (z.status === "class") return "Class";
+  if (z.status === "class")
+    return z.class?.segment === "Warm-up" ? "Warm-up" : "Class";
   if (z.status === "paused") return "Paused";
   if (z.status === "open")
     return z.soon ? `Class at ${clock(z.soon.start)}` : "Open";
@@ -20,7 +21,8 @@ function labelLine(z) {
 }
 
 function Label({ zone, selected, innerRef }) {
-  const minor = !zone.station;
+  // A shared space a class is holding (the track at warm-up) gets a full label.
+  const minor = !zone.station && zone.status !== "class";
   const line = minor ? null : labelLine(zone);
   return (
     <div

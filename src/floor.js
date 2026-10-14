@@ -201,6 +201,20 @@ export function applyFloor(state, action, now = new Date()) {
           out: null,
           by: action.by ?? "Front desk",
         });
+        // A coach already put this kid in a class or open gym today without
+        // a desk check-in: the desk has caught up, so the flag clears.
+        const late = (c) =>
+          c.childId === childId && !c.deskAt && dayKey(c.at) === dayKey(now);
+        if (next.gym?.checkins?.some(late))
+          next = {
+            ...next,
+            gym: {
+              ...next.gym,
+              checkins: next.gym.checkins.map((c) =>
+                late(c) ? { ...c, deskAt: at, deskLate: true } : c,
+              ),
+            },
+          };
         // Arriving for a class requests attendance; a coach still confirms it.
         const block = classToday(childId, now);
         if (block)

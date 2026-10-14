@@ -694,3 +694,89 @@
     position: static;
   }
 }
+
+/* ---------- Class floor use editor ---------- */
+
+.use-classes {
+  margin-bottom: var(--ds-space-4);
+}
+.use-zone rect {
+  fill: var(--ds-gray-50);
+  stroke: var(--ds-gray-300);
+  stroke-width: 0.4;
+  cursor: pointer;
+}
+.use-zone.is-locked rect {
+  cursor: default;
+}
+/* Used by another part of this class: a gold outline. */
+.use-zone.is-other rect {
+  stroke: var(--ds-zone-class);
+  stroke-width: 0.6;
+  stroke-dasharray: 1.4 0.9;
+}
+/* Used by the part being marked: gold. */
+.use-zone.is-on rect {
+  fill: color-mix(in srgb, var(--ds-zone-class) 45%, var(--ds-white));
+  stroke: var(--ds-zone-class);
+  stroke-width: 1;
+  stroke-dasharray: none;
+}
+.use-zone rect:focus {
+  outline: none;
+}
+.use-zone rect:focus-visible {
+  outline: none;
+  stroke: var(--ds-cyan);
+  stroke-width: 1.2;
+}
+.use-parts {
+  display: grid;
+  gap: var(--ds-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.use-parts button {
+  display: grid;
+  gap: var(--ds-space-1);
+  width: 100%;
+  min-height: var(--ds-target);
+  padding: var(--ds-space-3);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface);
+  color: var(--ds-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.use-parts button[aria-pressed="true"] {
+  border-color: var(--ds-zone-class);
+  box-shadow: inset 4px 0 0 var(--ds-zone-class);
+}
+.use-parts button:focus-visible {
+  outline: 3px solid var(--ds-focus);
+  outline-offset: 1px;
+}
+.use-part-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 var(--ds-space-2);
+}
+.use-part-head small {
+  font-size: var(--ds-text-label);
+  color: var(--ds-text-3);
+  white-space: nowrap;
+}
+.use-part-zones {
+  font-size: var(--ds-text-small);
+  color: var(--ds-text-2);
+}
+@media (hover: hover) {
+  .use-parts button:hover {
+    border-color: var(--ds-border-strong);
+  }
+}

@@ -25,13 +25,21 @@ async function seed(page, phone) {
 }
 const board = async (page, at) => {
   await page.goto(`${BASE}?tv&at=${at}`);
-  await page.locator(".ftv-label:not(.is-minor)").first().waitFor();
+  // Software WebGL in CI can take a while to draw the first frame.
+  await page.locator(".ftv-label:not(.is-minor)").first().waitFor({ timeout: 90000 });
   // Let the camera settle and the labels follow it.
   await page.waitForTimeout(2500);
 };
+// The board hides its buttons a few seconds after the mouse stops, the way
+// a TV should. Move the mouse first, as a person would, before using them.
+const wake = async (page) => {
+  await page.mouse.move(40, 40);
+  await page.mouse.move(80, 60, { steps: 3 });
+  await page.waitForTimeout(300);
+};
 
 {
-  const { page, h } = await kit.page("tv", { label: "board" });
+  const { context, page, h } = await kit.page("tv", { label: "board" });
   await seed(page);
   await h.step("a class lights its zones and lists them in the rail", async () => {
     await board(page, "10:20");
@@ -49,7 +57,8 @@ const board = async (page, at) => {
   await h.shot("open-gym", { full: false });
   await h.step("a class starting soon is flagged on its zones", async () => {
     await board(page, "15:10");
-    await page.locator(".ftv-block.is-open .ftv-rows small", { hasText: "Class 3:30" }).first().waitFor();
+    // Foundations warms up on the track at 3:30; its stations follow at 3:35.
+    await page.locator(".ftv-block.is-open .ftv-rows small", { hasText: "Class 3:35" }).first().waitFor();
   });
   await h.shot("soon", { full: false });
   await h.step("before opening the board says closed", async () => {
@@ -68,6 +77,7 @@ const board = async (page, at) => {
   await h.shot("bike-games", { full: false });
   await h.step("the overhead view shows the plan, and a tap picks a zone", async () => {
     await board(page, "10:20");
+    await wake(page);
     await page.getByRole("radio", { name: "Overhead" }).click();
     await page.locator("main.ftv.is-top").waitFor();
     await page.waitForTimeout(800);
@@ -83,16 +93,19 @@ const board = async (page, at) => {
     await page.keyboard.press("v");
     await page.reload();
     await page.locator("main.ftv.is-top").waitFor();
+    await wake(page);
     await page.getByRole("radio", { name: "3D" }).click();
   });
   await h.step("a coach who isn't an owner can't edit the floor", async () => {
     await page.goto(`${BASE}?tv&edit`);
     await page.getByText("Only the owners change the floor plan").waitFor();
   });
+  // Each page holds a WebGL context; free it before the next one.
+  await context.close();
 }
 
 {
-  const { page, h } = await kit.page("desktop", { label: "editor" });
+  const { context, page, h } = await kit.page("desktop", { label: "editor" });
   await seed(page, CHARLIE);
   await h.step("an owner opens the editor", async () => {
     await page.goto(`${BASE}?tv&edit`);
@@ -136,15 +149,19 @@ const board = async (page, at) => {
     await page.getByRole("button", { name: "Back to the board" }).click();
     await page.locator(".ftv-label", { hasText: "Hoops court" }).waitFor();
   });
+  // Each page holds a WebGL context; free it before the next one.
+  await context.close();
 }
 
 {
-  const { page, h } = await kit.page("desktop", { label: "station-coach" });
+  const { context, page, h } = await kit.page("desktop", { label: "station-coach" });
   await seed(page, SAM);
   await h.step("a station coach sees the editor locked", async () => {
     await page.goto(`${BASE}?tv&edit`);
     await page.getByText("Sign in as Charlie, Ally or Travis").waitFor();
   });
+  // Each page holds a WebGL context; free it before the next one.
+  await context.close();
 }
 
 // The front desk TV, with a few opted-in kids so crowns and shoutouts show.
@@ -171,15 +188,18 @@ async function seedDesk(page) {
   });
 }
 {
-  const { page, h } = await kit.page("tv", { label: "desk" });
+  const { context, page, h } = await kit.page("tv", { label: "desk" });
   await seedDesk(page);
   await h.step("during a class, only free equipment earns points on the strip", async () => {
     await page.goto(`${BASE}?tv=desk&at=10:20`);
     await page.locator(".dtv-schedule li.is-live", { hasText: "Homeschool ninja" }).waitFor();
     await page.locator(".dtv-schedule li.is-live em", { hasText: "Now" }).waitFor();
+    // The class holds only its marked zones; nothing on the strip may be one.
+    await page.locator(".ftv-label.is-class").first().waitFor({ timeout: 90000 });
+    const held = await page.locator(".ftv-label.is-class .ftv-label-name").allTextContents();
     const where = await page.locator(".dtv-move footer span").allTextContents();
-    if (!where.length || where.some((w) => !w.startsWith("Basketball court")))
-      throw Error(`moves outside the free court: ${where.join(", ")}`);
+    if (!where.length || where.some((w) => held.some((z) => w.startsWith(z))))
+      throw Error(`moves on zones the class holds: ${where.join(", ")} (held: ${held.join(", ")})`);
   });
   await h.step("in open gym the strip shows five movements across the floor", async () => {
     await page.goto(`${BASE}?tv=desk&at=13:00`);
@@ -204,9 +224,11 @@ async function seedDesk(page) {
     await page.goto(`${BASE}?tv=desk&at=08:00`);
     await page.getByText("Points open up when the gym does.").waitFor();
   });
+  // Each page holds a WebGL context; free it before the next one.
+  await context.close();
 }
 {
-  const { page, h } = await kit.page("phone", { label: "desk", reducedMotion: "reduce" });
+  const { context, page, h } = await kit.page("phone", { label: "desk", reducedMotion: "reduce" });
   await seedDesk(page);
   await h.step("the desk screen stacks on a phone", async () => {
     await page.goto(`${BASE}?tv=desk&at=13:00`);
@@ -214,11 +236,13 @@ async function seedDesk(page) {
   });
   await h.overflow("desk", [".ftv-labels", ".ftv-canvas"]);
   await h.shot("desk", { full: true });
+  // Each page holds a WebGL context; free it before the next one.
+  await context.close();
 }
 
 // The demo day: pause it, jump the timeline to each moment, check the line.
 {
-  const { page, h } = await kit.page("tv", { label: "demo" });
+  const { context, page, h } = await kit.page("tv", { label: "demo" });
   await seed(page);
   const START = 9 * 60 + 45;
   const END = 20 * 60 + 30;
@@ -252,6 +276,8 @@ async function seedDesk(page) {
   }
   await h.step("the floor board runs the same demo day", async () => {
     await page.goto(`${BASE}?tv&demo`);
+    await page.locator(".ftv-label:not(.is-minor)").first().waitFor({ timeout: 90000 });
+    await wake(page);
     await page.getByRole("button", { name: "Pause the demo" }).click();
     await jump("10:30");
     await page.locator(".ftv-block.is-class", { hasText: "Homeschool ninja" }).waitFor();
@@ -259,14 +285,70 @@ async function seedDesk(page) {
       throw Error("no editing during the demo");
   });
   await h.shot("floor-class", { full: false });
+  // Each page holds a WebGL context; free it before the next one.
+  await context.close();
+}
+
+// Class floor use: a class holds only the zones marked for the part it's in.
+{
+  const { context, page, h } = await kit.page("tv", { label: "use" });
+  await seed(page, CHARLIE);
+  await h.step("during the warm-up only the track is held; the rig waits its turn", async () => {
+    await board(page, "10:02");
+    await page.locator(".ftv-label.is-class", { hasText: "Run track" }).waitFor();
+    await page.locator(".ftv-label.is-class .ftv-label-state", { hasText: "Warm-up" }).waitFor();
+    await page.locator(".ftv-label.is-soon", { hasText: "Grip lanes" }).waitFor();
+    if (await page.locator(".ftv-label.is-class", { hasText: "Grip lanes" }).count())
+      throw Error("the rig is free until the stations start");
+  });
+  await h.shot("warmup", { full: false });
+  await h.step("during stations the class holds its lanes, not the whole rig", async () => {
+    await board(page, "10:20");
+    await page.locator(".ftv-label.is-class", { hasText: "Grip lanes" }).waitFor();
+    await page.locator(".ftv-label.is-open", { hasText: "Advanced rig" }).waitFor();
+    await page.locator(".ftv-label.is-open", { hasText: "Track wall" }).waitFor();
+  });
+  await h.shot("stations", { full: false });
+  await h.step("an owner moves the course station onto the advanced rig", async () => {
+    await wake(page);
+    await page.getByRole("button", { name: "Class floor use" }).click();
+    await page.getByRole("heading", { name: "Class floor use" }).waitFor();
+    await page.getByRole("radio", { name: "Homeschool ninja" }).click();
+    await page.locator(".use-parts button", { hasText: "Ninja course" }).click();
+    await page.getByRole("checkbox", { name: "Advanced rig" }).click();
+    await page.getByRole("checkbox", { name: "Course lanes" }).click();
+    await page.locator(".use-parts button[aria-pressed=true]", { hasText: "Advanced rig" }).waitFor();
+  });
+  await h.shot("use-editor", { full: false });
+  await h.step("saves, and the board follows the new floor use", async () => {
+    await page.getByRole("button", { name: "Save floor use" }).click();
+    await page.getByText(/Last marked by Charlie Mitchell/).waitFor();
+    await board(page, "10:20");
+    await page.locator(".ftv-label.is-class", { hasText: "Advanced rig" }).waitFor();
+    await page.locator(".ftv-label.is-open", { hasText: "Course lanes" }).waitFor();
+  });
+  await context.close();
+}
+{
+  const { context, page, h } = await kit.page("desktop", { label: "use-locked" });
+  await seed(page, "+16025550154");
+  await h.step("a coach who leads no class sees floor use read-only", async () => {
+    await page.goto(`${BASE}?tv&edit=use`);
+    await page.getByRole("heading", { name: "Class floor use" }).waitFor();
+    await page.getByText("Head coach or owner").waitFor();
+    if (await page.getByRole("checkbox").count()) throw Error("zones shouldn't be tappable");
+  });
+  await context.close();
 }
 
 for (const size of ["laptop", "phone"]) {
-  const { page, h } = await kit.page(size, { label: "board", reducedMotion: "reduce" });
+  const { context, page, h } = await kit.page(size, { label: "board", reducedMotion: "reduce" });
   await seed(page);
   await h.step("the board fits", async () => board(page, "10:20"));
   await h.overflow("board", [".ftv-labels", ".ftv-canvas"]);
   await h.shot("board", { full: size === "phone" });
+  // Each page holds a WebGL context; free it before the next one.
+  await context.close();
 }
 
 await kit.close();

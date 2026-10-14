@@ -9,7 +9,7 @@ import { sessions, dayKey } from "./club.js";
 import { people } from "./domain.js";
 import { rosterFor } from "./floor.js";
 import { gymMinutes, toMinutes } from "./gym-time.js";
-import { checkinsFor, crewFor, crewOn, staffName } from "./gym.js";
+import { checkinsFor, crewFor, crewOn, runOf, staffName } from "./gym.js";
 
 export { crewOn };
 
@@ -107,8 +107,9 @@ export function seedStaffing(now = new Date()) {
       },
     ],
     // Owner settings. Classes with a kid aged 6 or under use youngRatio.
+    // A class can run with one coach; the ratio decides when it needs more.
     rules: {
-      classMin: 3,
+      classMin: 1,
       openMin: 1,
       floaterPerClass: 1,
       classRatio: 8,
@@ -225,11 +226,21 @@ export const breaksOn = (state, at = new Date()) => {
     .sort((a, b) => a.start.localeCompare(b.start));
 };
 
+// The day's crew for a block plus any coach the head coach added as a
+// helper when the class checked in.
+export function classCrew(state, block, at = new Date()) {
+  const crew = crewOn(state, block.index, at);
+  const helpers = (runOf(state, block.id)?.helpers ?? [])
+    .filter((id) => !crew.some((c) => c.staffId === id))
+    .map((staffId) => ({ staffId, role: "helper" }));
+  return [...crew, ...helpers];
+}
+
 // Everything a coach is booked for on a day, as minute ranges.
 export function commitments(state, staffId, at = new Date()) {
   const out = [];
   for (const b of sessions(at)) {
-    const role = crewOn(state, b.index, at).find(
+    const role = classCrew(state, b, at).find(
       (c) => c.staffId === staffId,
     )?.role;
     if (role)
@@ -496,10 +507,21 @@ export function neededCoaches(state, block) {
   };
 }
 
+// How many kids one coach can take in a group: the little-ones ratio when
+// anyone in it is 6 or under.
+export function groupLimit(state, ids) {
+  const r = staffingOf(state).rules;
+  const young = ids.some(
+    (id) => (people.find((p) => p.id === id)?.age ?? 99) <= 6,
+  );
+  const limit = young ? (r.youngRatio ?? r.classRatio) : r.classRatio;
+  return { limit, young, over: ids.length > limit };
+}
+
 // Gaps and clashes for one block on a day.
 export function blockCheck(state, block, at = new Date()) {
   const s = staffingOf(state);
-  const crew = crewOn(state, block.index, at);
+  const crew = classCrew(state, block, at);
   const { kids, ratio, min, need } = neededCoaches(state, block);
   const issues = [];
   const b0 = toMinutes(block.start);

@@ -222,7 +222,13 @@ test("a class runs from attendance to groups, rotations and bonus picks", () => 
   assert.ok(runOf(s, homeschool.id).groups[2].includes(moved));
   s = applyGym(
     s,
-    { type: "startClass", session: homeschool.id, actor: jordan },
+    {
+      type: "startClass",
+      session: homeschool.id,
+      minutes: 15,
+      warmup: 0,
+      actor: jordan,
+    },
     later(4),
   );
   const r0 = rotation(runOf(s, homeschool.id), later(4));

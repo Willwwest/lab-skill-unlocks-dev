@@ -280,10 +280,10 @@ export function DayPanel({ ops }) {
     <>
       <Section
         title="Today by the half hour"
-        note="Scroll sideways on a phone. The column with a ring is now."
+        note="Each square is half an hour. Now is outlined."
         actions={<Legend />}
       >
-        <Card pad="sm" className="st-grid-card">
+        <Card pad="sm" className="st-grid-card st-grid-wide">
           <div className="st-grid-scroll">
             <table className="st-grid">
               <thead>
@@ -325,6 +325,57 @@ export function DayPanel({ ops }) {
               </tbody>
             </table>
           </div>
+        </Card>
+        {/* On a phone the day runs down the screen, one column per coach,
+            so it fits without scrolling sideways. */}
+        <Card pad="sm" className="st-grid-card st-grid-phone">
+          <table className="st-grid st-gridv">
+            <thead>
+              <tr>
+                <th scope="col" className="st-gridv-time">
+                  <span className="sr-only">Time</span>
+                </th>
+                {grid.rows.map((r) => (
+                  <th key={r.staff.id} scope="col" title={r.staff.name}>
+                    <CoachMark initials={r.staff.initials} size={30} />
+                    <span className="sr-only">{r.staff.name}</span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {grid.slots.map((t, i) => {
+                const label = clock(minutesToTime(t));
+                return (
+                  <tr
+                    key={t}
+                    className={
+                      m >= t && m < t + grid.step ? "st-grid-now" : undefined
+                    }
+                  >
+                    <th scope="row" className="st-gridv-time">
+                      {t % 60 === 0 ? (
+                        label
+                      ) : (
+                        <span className="sr-only">{label}</span>
+                      )}
+                    </th>
+                    {grid.rows.map((r) => (
+                      <td
+                        key={r.staff.id}
+                        className={`st-${r.cells[i]}`}
+                        title={`${r.staff.name} · ${label} · ${statusInfo[r.cells[i]].label}`}
+                      >
+                        <span className="sr-only">
+                          {r.staff.name}: {statusInfo[r.cells[i]].label}
+                        </span>
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </Card>
       </Section>
       <Section

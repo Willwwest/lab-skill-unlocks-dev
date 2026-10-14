@@ -81,7 +81,8 @@ test("half an hour before a class its zones get the gold edge", () => {
   const { status } = at("15:10");
   const soon = status.zones.filter((z) => z.soon?.name === "Ninja foundations");
   assert.ok(soon.length > 0);
-  assert.ok(soon.every((z) => z.status === "open"));
+  // Still free (open gym, or the track as shared space) until the class takes them.
+  assert.ok(soon.every((z) => z.status !== "class"));
   assert.match(demoCaption(status), /starts soon/);
 });
 

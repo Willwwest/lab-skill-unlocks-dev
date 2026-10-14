@@ -6,7 +6,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { clock } from "./club.js";
+import { clock, sessions } from "./club.js";
 import { gymClockTime, gymFullDay } from "./gym-time.js";
 import { floorStatus, layoutOf } from "./layout.js";
 import { stationLabel } from "./gym.js";
@@ -14,10 +14,12 @@ import FloorMap, { rank } from "./FloorMap.jsx";
 import { countdown, photoUrl, useNow } from "./tvkit.js";
 import { demoState } from "./demoday.js";
 import DemoBar from "./DemoBar.jsx";
+import { canMarkUse } from "./flooruse.js";
 import "./ds/tokens.css";
 import "./floortv.css";
 
 const LayoutEditor = lazy(() => import("./LayoutEditor.jsx"));
+const FloorUseEditor = lazy(() => import("./FloorUseEditor.jsx"));
 
 const FEATURE_MS = 12000;
 const HOLD_MS = 45000;
@@ -218,9 +220,25 @@ export default function FloorTV({ state: stored, setState, session, onExit }) {
     () => (demo ? demoState(stored, demo.day, demo.minute) : stored),
     [stored, demo?.day, demo?.minute],
   );
-  const [editing, setEditing] = useState(() =>
-    new URLSearchParams(window.location.search).has("edit"),
-  );
+  // "plan" (the owners' floor plan), "use" (class floor use) or false.
+  // ?tv&edit opens the plan, ?tv&edit=use the class floor use.
+  const [editing, setEditing] = useState(() => {
+    const q = new URLSearchParams(window.location.search);
+    return q.get("edit") === "use" ? "use" : q.has("edit") ? "plan" : false;
+  });
+  const actor = {
+    role: "Coach",
+    name: session?.name,
+    staffId: session?.staffId,
+    head: !!session?.head,
+    owner: !!session?.owner,
+  };
+  // Owners, the gym manager and each class's head coach mark floor use.
+  const marksUse =
+    session?.kind === "staff" &&
+    sessions(now).some(
+      (b) => b.kind === "class" && canMarkUse(stored, actor, b.index),
+    );
   const [view, setView] = useState(startView);
   const [feature, setFeature] = useState(0);
   const [held, setHeld] = useState(null);
@@ -285,6 +303,17 @@ export default function FloorTV({ state: stored, setState, session, onExit }) {
     };
   }, []);
 
+  if (editing === "use")
+    return (
+      <Suspense fallback={<div className="ftv-loading" />}>
+        <FloorUseEditor
+          state={stored}
+          setState={setState}
+          session={session}
+          onClose={() => setEditing(false)}
+        />
+      </Suspense>
+    );
   if (editing)
     return (
       <Suspense fallback={<div className="ftv-loading" />}>
@@ -344,9 +373,18 @@ export default function FloorTV({ state: stored, setState, session, onExit }) {
             <button
               type="button"
               className="ftv-tool"
-              onClick={() => setEditing(true)}
+              onClick={() => setEditing("plan")}
             >
               Edit floor
+            </button>
+          )}
+          {marksUse && !demo && (
+            <button
+              type="button"
+              className="ftv-tool"
+              onClick={() => setEditing("use")}
+            >
+              Class floor use
             </button>
           )}
           {onExit && (
