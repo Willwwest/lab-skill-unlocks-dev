@@ -27,6 +27,7 @@ const SYSTEM_FILES = [
   "./ds/StyleGuide.jsx",
   "./ds/styleguide.css",
   "./plans.css",
+  "./BlockSchedule.jsx",
   "./charts.jsx",
   "./InsightsView.jsx",
   "./floortv.css",

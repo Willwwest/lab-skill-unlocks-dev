@@ -12,6 +12,7 @@ import {
   sessions,
   stations,
 } from "./club.js";
+import { sessionFromId } from "./schedule.js";
 import { arrival, readySkills, stationCategory } from "./floor.js";
 import { coaches, families, kidInfo, staff } from "./roster.js";
 import { seedHistory } from "./history.js";
@@ -209,7 +210,7 @@ export const leadOf = (state, index, at = new Date()) =>
 
 // The blocks a coach works today, in time order, with their role.
 export function myBlocks(state, staffId, at = new Date()) {
-  return sessions(at)
+  return sessions(at, state)
     .map((s) => ({
       ...s,
       role:
@@ -673,8 +674,8 @@ export const bonusesBy = (state, sessionId, coachName) =>
 
 /* ---------- Actions ---------- */
 
-const blockOf = (sessionId, now) => {
-  const b = sessions(now).find((s) => s.id === sessionId);
+const blockOf = (sessionId, now, state) => {
+  const b = sessions(now, state).find((s) => s.id === sessionId);
   if (!b) throw Error("Choose a class or open gym block from today.");
   return b;
 };
@@ -716,7 +717,8 @@ export function applyGym(state, action, now = new Date()) {
       return;
     throw Error("Only coaches in this class can do that.");
   };
-  const indexOf = (session) => Number(String(session).split(":")[1]);
+  // A session id is "<day>:<block id>"; the block id is the class.
+  const indexOf = (session) => String(session).slice(11);
   let next = state;
   switch (action.type) {
     case "level": {
@@ -727,7 +729,7 @@ export function applyGym(state, action, now = new Date()) {
       break;
     }
     case "checkIn": {
-      const block = blockOf(action.session, now);
+      const block = blockOf(action.session, now, state);
       if (!action.childIds?.length) throw Error("Choose who to check in.");
       let added = 0;
       for (const childId of action.childIds) {
@@ -788,7 +790,7 @@ export function applyGym(state, action, now = new Date()) {
       break;
     }
     case "undoCheckIn": {
-      const block = blockOf(action.session, now);
+      const block = blockOf(action.session, now, state);
       const row = g.checkins.find(
         (c) => c.session === block.id && c.childId === action.childId,
       );
@@ -817,7 +819,7 @@ export function applyGym(state, action, now = new Date()) {
     }
     case "attendanceDone":
     case "regroup": {
-      const block = blockOf(action.session, now);
+      const block = blockOf(action.session, now, state);
       if (block.kind !== "class") throw Error("Groups are for classes.");
       const present = g.checkins
         .filter((c) => c.session === block.id)
@@ -901,7 +903,7 @@ export function applyGym(state, action, now = new Date()) {
     // their phone like the crew: their group or station, check-offs,
     // bonus picks, the clock and notes.
     case "addHelper": {
-      const block = blockOf(action.session, now);
+      const block = blockOf(action.session, now, state);
       if (block.kind !== "class") throw Error("Helpers are for classes.");
       if (!coaches.some((c) => c.id === action.staffId))
         throw Error("Choose a coach.");
@@ -1070,7 +1072,7 @@ export function applyGym(state, action, now = new Date()) {
       break;
     }
     case "bonus": {
-      const block = blockOf(action.session, now);
+      const block = blockOf(action.session, now, state);
       const ids = [...new Set(action.childIds ?? [])];
       if (!ids.length) throw Error("Pick at least one kid.");
       const given = bonusesBy(next, block.id, actor.name).length;
@@ -1244,9 +1246,7 @@ export function coachStats(state, from) {
     );
     const late = runs
       .map((r) => {
-        const block = sessions(`${r.session.slice(0, 10)}T12:00:00Z`).find(
-          (b) => b.id === r.session,
-        );
+        const block = sessionFromId(state, r.session);
         return block
           ? minutesBetween(
               gymLocalIso(r.session.slice(0, 10), block.start),

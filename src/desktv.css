@@ -276,3 +276,18 @@
     padding: var(--ds-space-2) 0 var(--ds-space-2) var(--ds-space-3);
   }
 }
+
+/* A day with nothing scheduled: the schedule column says so. */
+.dtv-closed {
+  display: grid;
+  gap: 0.4vw;
+  margin-top: 0.6vw;
+}
+.dtv-closed strong {
+  font-size: clamp(17px, 1.35vw, 30px);
+  font-weight: 700;
+}
+.dtv-closed span {
+  font-size: clamp(12px, 0.86vw, 19px);
+  color: var(--muted);
+}

@@ -8,7 +8,8 @@
 //   { warmup: [zoneId], close: [zoneId], stations: { grip: [zoneId], ... },
 //     by, at }
 // The class's head coach, the gym manager and the owners set it.
-import { sessions, stations } from "./club.js";
+import { stations } from "./club.js";
+import { blockById } from "./schedule.js";
 import {
   CLOSE_MINUTES,
   crewFor,
@@ -54,6 +55,7 @@ export function validUse(u) {
 
 // The saved floor use for a class, or the default.
 export function useFor(state, index) {
+  index = String(index);
   const saved = state?.floorUse?.[index];
   return validUse(saved) ? saved : defaultUse();
 }
@@ -61,6 +63,7 @@ export function useFor(state, index) {
 // Who can mark a class's floor use: owners, the gym manager, or the
 // class's own head coach.
 export function canMarkUse(state, actor, index) {
+  index = String(index);
   if (actor?.role !== "Coach") return false;
   if (actor.owner || actor.head) return true;
   return crewFor(state, index).some(
@@ -69,8 +72,11 @@ export function canMarkUse(state, actor, index) {
 }
 
 export function applyFloorUse(state, action, now = new Date()) {
-  const { actor = {}, index } = action;
-  const block = sessions(now).find((b) => b.index === index);
+  const { actor = {} } = action;
+  // Block ids are strings; older callers pass the list position.
+  const index = String(action.index);
+  // Any class in the weekly schedule, even one that doesn't run today.
+  const block = blockById(state, index);
   if (!block || block.kind !== "class") throw Error("Choose a class.");
   if (!canMarkUse(state, actor, index))
     throw Error(

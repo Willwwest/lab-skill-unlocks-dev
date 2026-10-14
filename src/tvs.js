@@ -10,7 +10,8 @@ import { dayKey, seasonKey, sessionPhase, sessions, stations } from "./club.js";
 import { stationFor } from "./floor.js";
 import { leadOf, staffName } from "./gym.js";
 import { floorStatus } from "./layout.js";
-import { gymMinutes } from "./gym-time.js";
+import { gymMinutes, weekdayOf } from "./gym-time.js";
+import { hoursOn, weekdayNames } from "./schedule.js";
 
 // A station can span several zones (movement covers the balance beam and
 // the vault blocks). Send each move to the zone whose equipment fits it.
@@ -29,12 +30,36 @@ function zoneFor(skill, zones) {
   return zones[0];
 }
 
+// The next day the gym opens after `at`'s day, within two weeks:
+// { day, weekday, start } with start as "10:00", or null.
+export function nextOpening(state, at = new Date()) {
+  const base = Date.parse(`${dayKey(at)}T12:00:00Z`);
+  for (let i = 1; i <= 14; i++) {
+    const day = new Date(base + i * 86400000).toISOString().slice(0, 10);
+    const h = hoursOn(state, day);
+    if (h)
+      return {
+        day,
+        weekday: i === 1 ? "tomorrow" : weekdayNames[weekdayOf(day)],
+        start: `${String(Math.floor(h.start / 60)).padStart(2, "0")}:${String(h.start % 60).padStart(2, "0")}`,
+      };
+  }
+  return null;
+}
+// "Open again Monday at 10:00." for a closed screen.
+export const openAgain = (o) =>
+  o ? `Open again ${o.weekday} at ${clockOf(o.start)}.` : "Closed for now.";
+const clockOf = (hhmm) => {
+  const [h, m] = hhmm.split(":").map(Number);
+  return `${((h + 11) % 12) + 1}:${String(m).padStart(2, "0")}`;
+};
+
 // Points for unlocking a skill; the same rule as clubStats in club.js.
 export const skillPoints = (skill) => 10 + skill.tier * 10;
 
 // The day's blocks in time order, with who leads each and where it stands.
 export function todaySchedule(state, at = new Date()) {
-  return sessions(at)
+  return sessions(at, state)
     .map((b) => ({
       id: b.id,
       name: b.name,

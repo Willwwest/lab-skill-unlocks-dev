@@ -14,9 +14,28 @@ import { emptyFloor, rosterFor } from "./floor.js";
 import { applyGym, leadOf, withoutHistory } from "./gym.js";
 import { gymLocalIso, toMinutes } from "./gym-time.js";
 import { staff } from "./roster.js";
+import { blocksOn, hoursOn } from "./schedule.js";
 
+// The seed's day: before opening to after close.
 export const DEMO_START = toMinutes("09:45");
 export const DEMO_END = toMinutes("20:30");
+
+// The demo runs on the first day from `from` that has classes (a Sunday
+// demo would be empty), from 15 minutes before opening to 30 after close.
+export function demoDayFrom(state, from = new Date()) {
+  const base = Date.parse(`${dayKey(from)}T12:00:00Z`);
+  for (let i = 0; i < 14; i++) {
+    const day = new Date(base + i * 86400000).toISOString().slice(0, 10);
+    if (blocksOn(state, day).some((b) => b.kind === "class")) return day;
+  }
+  return dayKey(from);
+}
+export function demoRange(state, day) {
+  const h = hoursOn(state, day);
+  return h
+    ? { start: h.start - 15, end: h.end + 30 }
+    : { start: DEMO_START, end: DEMO_END };
+}
 
 const hhmm = (m) =>
   `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(Math.floor(m % 60)).padStart(2, "0")}`;
@@ -88,7 +107,7 @@ const actorFor = (state, block, at) => {
 // The whole state as it stands at minute `minute` of the demo day.
 export function demoState(base, day, minute) {
   const at = (m) => demoMoment(day, m);
-  const blocks = sessions(at(minute));
+  const blocks = sessions(at(minute), base);
   const open = blocks.find((b) => b.kind === "open") ?? blocks[0];
   const events = script
     .filter(([t]) => toMinutes(t) <= minute)
@@ -155,6 +174,8 @@ export function demoCaption(status) {
   const paused = status.zones.find((z) => z.status === "paused");
   const live = status.liveClasses[0];
   const soon = status.zones.find((z) => z.status === "open" && z.soon)?.soon;
+  if (status.hours.closedToday)
+    return "Closed today. Nothing is scheduled, so every zone is dark.";
   if (!status.hours.open)
     return "Closed. Before opening and after close every zone is dark.";
   if (paused)

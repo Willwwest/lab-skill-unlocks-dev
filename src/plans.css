@@ -466,3 +466,36 @@ button.pl-add:hover {
     display: none;
   }
 }
+
+/* When a block runs */
+.pl-days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2);
+}
+.pl-exceptions {
+  display: grid;
+  gap: var(--ds-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.pl-exceptions li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-2) var(--ds-space-3);
+}
+.pl-exceptions small {
+  color: var(--ds-text-3);
+}
+.pl-oneday {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--ds-space-3);
+}
+.pl-times {
+  display: flex;
+  gap: var(--ds-space-2);
+}

@@ -5,7 +5,8 @@
 // plans and running rotations in gym.js, and station pauses in floor.js.
 import { sessionPhase, sessions, stations } from "./club.js";
 import { coachAt, planFor, rotation, runOf, staffName } from "./gym.js";
-import { gymMinutes as minutesAt, toMinutes } from "./gym-time.js";
+import { gymDayKey, gymMinutes as minutesAt, toMinutes } from "./gym-time.js";
+import { hoursOn } from "./schedule.js";
 import { segmentsFor } from "./flooruse.js";
 
 // Feet. The front door is in the south-east corner of the south wall,
@@ -265,12 +266,13 @@ export function applyLayout(state, action, now = new Date()) {
 
 /* ---------- What each zone is doing ---------- */
 
-// Open from the first block of the day to the last.
-export function openHours(at = new Date()) {
-  const list = sessions(at);
-  const start = Math.min(...list.map((s) => toMinutes(s.start)));
-  const end = Math.max(...list.map((s) => toMinutes(s.end)));
-  return { start, end, open: minutesAt(at) >= start && minutesAt(at) < end };
+// Open from that day's first block to its last, by the schedule. A day
+// with nothing scheduled (Sundays in the seed, holidays) is closed all day.
+export function openHours(at = new Date(), state) {
+  const h = hoursOn(state, gymDayKey(at));
+  if (!h) return { start: null, end: null, open: false, closedToday: true };
+  const now = minutesAt(at);
+  return { ...h, open: now >= h.start && now < h.end, closedToday: false };
 }
 
 // The stations a class block uses: the running rotation if there is one,
@@ -333,8 +335,8 @@ const hhmm = (ms) => {
  */
 export function floorStatus(state, at = new Date()) {
   const layout = layoutOf(state);
-  const hours = openHours(at);
-  const blocks = sessions(at);
+  const hours = openHours(at, state);
+  const blocks = sessions(at, state);
   const live = blocks.filter((s) => sessionPhase(s, at) === "live");
   const liveClasses = live.filter((s) => s.kind === "class");
   const now = minutesAt(at);

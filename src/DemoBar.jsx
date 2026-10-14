@@ -1,11 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { Pause, Play } from "lucide-react";
-import { sessions } from "./club.js";
 import { gymClockTime, toMinutes } from "./gym-time.js";
-import { DEMO_END, DEMO_START, demoCaption } from "./demoday.js";
-
-const span = DEMO_END - DEMO_START;
-const pct = (m) => `${((m - DEMO_START) / span) * 100}%`;
+import { demoCaption } from "./demoday.js";
 
 /*
  * The bar across the top of the map on a ?demo screen: the gym time, play
@@ -13,8 +9,10 @@ const pct = (m) => `${((m - DEMO_START) / span) * 100}%`;
  * line on what the zones are showing. Space pauses, the arrow keys step a
  * quarter hour.
  */
-export default function DemoBar({ demo, status, now }) {
+export default function DemoBar({ demo, status, now, blocks }) {
   const track = useRef(null);
+  const span = demo.end - demo.start;
+  const pct = (m) => `${((m - demo.start) / span) * 100}%`;
   useEffect(() => {
     const key = (e) => {
       if (e.key === " ") {
@@ -28,7 +26,7 @@ export default function DemoBar({ demo, status, now }) {
   }, [demo]);
   const jump = (e) => {
     const r = track.current.getBoundingClientRect();
-    demo.seek(DEMO_START + ((e.clientX - r.left) / r.width) * span);
+    demo.seek(demo.start + ((e.clientX - r.left) / r.width) * span);
   };
   return (
     <div className="tv-demo" role="region" aria-label="Demo day">
@@ -53,13 +51,13 @@ export default function DemoBar({ demo, status, now }) {
           onPointerDown={jump}
           role="slider"
           aria-label="Time of day"
-          aria-valuemin={DEMO_START}
-          aria-valuemax={DEMO_END}
+          aria-valuemin={demo.start}
+          aria-valuemax={demo.end}
           aria-valuenow={demo.minute}
           aria-valuetext={gymClockTime(now)}
           tabIndex={0}
         >
-          {sessions(now).map((b) => (
+          {blocks.map((b) => (
             <span
               key={b.id}
               className={`tv-demo-block is-${b.kind === "class" ? "class" : "open"}`}

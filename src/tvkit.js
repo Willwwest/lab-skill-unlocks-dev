@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { dayKey } from "./club.js";
 import { gymLocalIso } from "./gym-time.js";
-import { DEMO_END, DEMO_START, demoMoment } from "./demoday.js";
+import { demoDayFrom, demoMoment, demoRange } from "./demoday.js";
 
 // The public build leaves the gym photos out (they show kids); see
 // scripts/publish-app.sh.
@@ -40,16 +40,23 @@ const TICK_MS = 250;
  * (default 4, so the day takes under three minutes), looping; `demo` has
  * the controls.
  */
-export function useNow() {
+export function useNow(state) {
   const offset = useMemo(previewOffset, []);
   const demoOn = useMemo(() => search().has("demo"), []);
   const speed = useMemo(() => {
     const v = Number(search().get("speed"));
     return v > 0 && v <= 60 ? v : 4;
   }, []);
-  const day = useMemo(() => dayKey(new Date()), []);
+  // Read once: the demo keeps its day and hours while it runs.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const day = useMemo(
+    () => (demoOn ? demoDayFrom(state) : dayKey(new Date())),
+    [],
+  );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const range = useMemo(() => demoRange(state, day), [day]);
   const [now, setNow] = useState(() => new Date(Date.now() + offset));
-  const [minute, setMinute] = useState(DEMO_START);
+  const [minute, setMinute] = useState(range.start);
   const [playing, setPlaying] = useState(true);
   useEffect(() => {
     if (demoOn) return;
@@ -62,15 +69,15 @@ export function useNow() {
       () =>
         setMinute((m) => {
           const next = m + (speed * TICK_MS) / 1000;
-          return next > DEMO_END ? DEMO_START : next;
+          return next > range.end ? range.start : next;
         }),
       TICK_MS,
     );
     return () => clearInterval(id);
-  }, [demoOn, playing, speed]);
+  }, [demoOn, playing, speed, range]);
   const seek = useCallback(
-    (m) => setMinute(Math.min(DEMO_END, Math.max(DEMO_START, m))),
-    [],
+    (m) => setMinute(Math.min(range.end, Math.max(range.start, m))),
+    [range],
   );
   if (!demoOn) return { now, preview: offset !== 0, demo: null };
   // Whole minutes, so the demo state is rebuilt once per gym minute.
@@ -80,6 +87,8 @@ export function useNow() {
     preview: false,
     demo: {
       day,
+      start: range.start,
+      end: range.end,
       minute: whole,
       playing,
       toggle: () => setPlaying((p) => !p),

@@ -1,6 +1,12 @@
 import React, { useMemo, useState } from "react";
 import { ArrowLeft, Lock } from "lucide-react";
-import { clock, sessions } from "./club.js";
+import { clock, dayKey } from "./club.js";
+import {
+  blockById,
+  scheduleOf,
+  sessionFromId,
+  weekdayNames,
+} from "./schedule.js";
 import { planFor, stationLabel } from "./gym.js";
 import { gymClockTime, gymSyncedAt } from "./gym-time.js";
 import { BUILDING, layoutOf } from "./layout.js";
@@ -19,6 +25,13 @@ const PAD = 4;
 // "10:05" from a moment; the class times give the morning or afternoon.
 const short = (ms) => gymClockTime(ms).replace(/\s?[AP]M$/, "");
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+// "Every day", "Weekdays" or "Mon, Wed, Fri" for a block's weekdays.
+const days = (b) => {
+  const w = [...(b?.weekdays ?? [])].sort();
+  if (w.length === 7) return "Every day";
+  if (w.join() === "1,2,3,4,5") return "Weekdays";
+  return w.map((d) => weekdayNames[d].slice(0, 3)).join(", ") || "Not running";
+};
 
 // The zones a part of the class uses, from the draft.
 const zonesOf = (use, part) =>
@@ -167,7 +180,7 @@ function ClassUse({ state, setState, actor, block }) {
         <Card className="lay-side">
           <CardHead
             title={block.name}
-            note={`${clock(block.start)}–${clock(block.end)}${block.ages ? ` · ages ${block.ages}` : ""}`}
+            note={`${days(blockById(state, block.index))} · ${clock(block.start)}–${clock(block.end)}${block.ages ? ` · ages ${block.ages}` : ""}`}
             aside={
               !can && (
                 <Tag tone="outline" icon={Lock}>
@@ -247,7 +260,12 @@ export default function FloorUseEditor({ state, setState, session, onClose }) {
     head: !!session?.head,
     owner: !!session?.owner,
   };
-  const classes = sessions(new Date()).filter((b) => b.kind === "class");
+  // Every class in the weekly schedule, as a session today, so a class
+  // can be marked on a day it doesn't run (or on a closed day).
+  const today = dayKey(new Date());
+  const classes = scheduleOf(state)
+    .blocks.filter((b) => b.kind === "class")
+    .map((b) => sessionFromId(state, `${today}:${b.id}`));
   const [index, setIndex] = useState(
     () =>
       (classes.find((b) => canMarkUse(state, actor, b.index)) ?? classes[0])

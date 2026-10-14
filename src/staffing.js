@@ -6,22 +6,39 @@
 // kids-per-coach ratios and the minimum crew per block.
 import { coaches, staff } from "./roster.js";
 import { sessions, dayKey } from "./club.js";
+import {
+  bucketOf,
+  comingBuckets,
+  portfolioBuckets,
+  sessionFromId,
+} from "./schedule.js";
 import { people } from "./domain.js";
 import { rosterFor } from "./floor.js";
-import { gymMinutes, toMinutes } from "./gym-time.js";
+import {
+  dayAt,
+  gymMinutes,
+  toMinutes,
+  weekKeyOf,
+  weekdayOf,
+} from "./gym-time.js";
+import { availableFor, hoursBand } from "./availability.js";
 import { checkinsFor, crewFor, crewOn, runOf, staffName } from "./gym.js";
 
 export { crewOn };
 
 export const STAFFING_VERSION = 1;
 
-// The kinds of work a coach's time is split across. Each coach keeps at
-// least the owner's minimum share (MIN_SHARE by default) in every one.
+// The kinds of work a coach's time is split across: the running programs
+// on the schedule (schedule.js buckets). Managers add programs and mark
+// them running or coming soon. Each coach keeps at least the owner's
+// minimum share (MIN_SHARE by default) in every running one.
 export const modalities = [
   { id: "class", label: "Ninja classes", short: "Classes" },
   { id: "open", label: "Open gym", short: "Open gym" },
   { id: "floater", label: "Floater", short: "Floater" },
 ];
+export const modalitiesOf = (state) =>
+  state ? portfolioBuckets(state) : modalities;
 export const MIN_SHARE = 10;
 
 // What a coach is doing at a moment.
@@ -44,14 +61,18 @@ export const requestKinds = {
 export const TRANSITION_MIN = 10;
 export const BREAK_LENGTHS = [15, 30, 45, 60];
 
+// Standing hours. Day coaches work Monday to Friday, evening coaches
+// Monday to Saturday. A shift without weekdays runs every day.
+const WEEKDAYS_5 = [1, 2, 3, 4, 5];
+const WEEKDAYS_6 = [1, 2, 3, 4, 5, 6];
 const defaultShifts = {
-  jordan: { start: "09:30", end: "17:00" },
-  sam: { start: "09:30", end: "18:30" },
-  priya: { start: "09:30", end: "18:00" },
-  riley: { start: "09:30", end: "18:00" },
-  morgan: { start: "15:00", end: "20:15" },
-  dev: { start: "15:00", end: "20:15" },
-  alex: { start: "09:00", end: "17:30" },
+  jordan: { start: "09:30", end: "17:00", weekdays: WEEKDAYS_5 },
+  sam: { start: "09:30", end: "18:30", weekdays: WEEKDAYS_5 },
+  priya: { start: "09:30", end: "18:00", weekdays: WEEKDAYS_5 },
+  riley: { start: "09:30", end: "18:00", weekdays: WEEKDAYS_5 },
+  morgan: { start: "15:00", end: "20:15", weekdays: WEEKDAYS_6 },
+  dev: { start: "15:00", end: "20:15", weekdays: WEEKDAYS_6 },
+  alex: { start: "09:00", end: "17:30", weekdays: WEEKDAYS_5 },
 };
 const defaultPortfolios = {
   jordan: { class: 70, open: 15, floater: 15 },
@@ -97,7 +118,7 @@ export function seedStaffing(now = new Date()) {
         kind: "cover",
         staffId: "dev",
         day,
-        index: 3,
+        index: "3",
         toStaffId: null,
         start: null,
         end: null,
@@ -117,6 +138,7 @@ export function seedStaffing(now = new Date()) {
       openRatio: 10,
       maxOnBreak: 1,
       minShare: MIN_SHARE,
+      maxWeekly: 40,
       expected: {},
     },
     // Who manages, set by the owner. Missing means the roster default.
@@ -198,7 +220,7 @@ export const minutesToTime = (m) =>
 const overlaps = (a0, a1, b0, b1) => a0 < b1 && b0 < a1;
 const dayOf = (s, day) => s.days[day] ?? {};
 // Midday on a gym day, as an instant, for day-based lookups.
-export const noonOf = (day) => `${day}T19:00:00Z`;
+export const noonOf = (day) => dayAt(day);
 
 /* ---------- Who works when ---------- */
 
@@ -206,7 +228,12 @@ export function shiftOn(state, staffId, at = new Date()) {
   const s = staffingOf(state);
   const d = dayOf(s, dayKey(at));
   if ((d.off ?? []).includes(staffId)) return null;
-  return d.hours?.[staffId] ?? s.shifts[staffId] ?? null;
+  if (d.hours?.[staffId]) return d.hours[staffId];
+  const standing = s.shifts[staffId];
+  if (!standing) return null;
+  if (standing.weekdays && !standing.weekdays.includes(weekdayOf(dayKey(at))))
+    return null;
+  return { start: standing.start, end: standing.end };
 }
 
 export const floaterOn = (state, index, at = new Date()) => {
@@ -239,13 +266,13 @@ export function classCrew(state, block, at = new Date()) {
 // Everything a coach is booked for on a day, as minute ranges.
 export function commitments(state, staffId, at = new Date()) {
   const out = [];
-  for (const b of sessions(at)) {
+  for (const b of sessions(at, state)) {
     const role = classCrew(state, b, at).find(
       (c) => c.staffId === staffId,
     )?.role;
     if (role)
       out.push({
-        kind: role === "attendant" ? "open" : "class",
+        kind: bucketOf(state, sessionFromId(state, b.id) ?? b),
         role,
         block: b,
         start: toMinutes(b.start),
@@ -416,10 +443,10 @@ export function breakClashes(state, at = new Date()) {
 
 /* ---------- Time portfolios ---------- */
 
-export function portfolioProblem(p, min = MIN_SHARE) {
+export function portfolioProblem(p, min = MIN_SHARE, list = modalities) {
   if (!p || typeof p !== "object") return "Fill in every type of work.";
   let sum = 0;
-  for (const m of modalities) {
+  for (const m of list) {
     const v = p[m.id];
     if (!Number.isInteger(v) || v < 0)
       return `Enter a whole number for ${m.label}.`;
@@ -431,23 +458,30 @@ export function portfolioProblem(p, min = MIN_SHARE) {
   return null;
 }
 
-export const portfolioOf = (state, staffId) =>
-  staffingOf(state).portfolios[staffId] ??
-  Object.fromEntries(
-    modalities.map((m) => [m.id, Math.round(100 / modalities.length)]),
-  );
+// A coach's split across the running programs. A program added since
+// they last saved starts at 0 until they rebalance.
+export function portfolioOf(state, staffId) {
+  const list = modalitiesOf(state);
+  const saved = staffingOf(state).portfolios[staffId];
+  if (!saved)
+    return Object.fromEntries(
+      list.map((m) => [m.id, Math.round(100 / list.length)]),
+    );
+  return Object.fromEntries(list.map((m) => [m.id, saved[m.id] ?? 0]));
+}
 
 // How a coach's booked minutes on a day split across the modalities.
 export function actualMix(state, staffId, at = new Date()) {
-  const mins = Object.fromEntries(modalities.map((m) => [m.id, 0]));
+  const list = modalitiesOf(state);
+  const mins = Object.fromEntries(list.map((m) => [m.id, 0]));
   for (const c of commitments(state, staffId, at))
-    mins[c.kind] += c.end - c.start;
+    mins[c.kind] = (mins[c.kind] ?? 0) + c.end - c.start;
   const total = Object.values(mins).reduce((a, b) => a + b, 0);
   return {
     minutes: mins,
     total,
     share: Object.fromEntries(
-      modalities.map((m) => [
+      list.map((m) => [
         m.id,
         total ? Math.round((mins[m.id] / total) * 100) : 0,
       ]),
@@ -460,7 +494,7 @@ export function portfolioGap(state, staffId, at = new Date()) {
   const target = portfolioOf(state, staffId);
   const { share, total } = actualMix(state, staffId, at);
   return Object.fromEntries(
-    modalities.map((m) => [
+    modalitiesOf(state).map((m) => [
       m.id,
       total ? target[m.id] - share[m.id] : target[m.id],
     ]),
@@ -526,9 +560,17 @@ export function blockCheck(state, block, at = new Date()) {
   const issues = [];
   const b0 = toMinutes(block.start);
   const b1 = toMinutes(block.end);
-  const off = dayOf(s, dayKey(at)).off ?? [];
+  const today = dayOf(s, dayKey(at));
+  const off = today.off ?? [];
+  // Once the block has been restaffed for the day, the weekly crew member
+  // who is off no longer needs covering.
+  const restaffed = !!today.crew?.[block.index];
   for (const c of crewFor(state, block.index))
-    if (off.includes(c.staffId) && !crew.some((x) => x.staffId === c.staffId))
+    if (
+      !restaffed &&
+      off.includes(c.staffId) &&
+      !crew.some((x) => x.staffId === c.staffId)
+    )
       issues.push({
         tone: "bad",
         text: `${staffName(c.staffId)} is off. Find cover.`,
@@ -571,7 +613,7 @@ export function blockCheck(state, block, at = new Date()) {
 }
 
 export const dayCheck = (state, at = new Date()) =>
-  sessions(at)
+  sessions(at, state)
     .slice()
     .sort((a, b) => a.start.localeCompare(b.start))
     .map((b) => blockCheck(state, b, at));
@@ -579,36 +621,90 @@ export const dayCheck = (state, at = new Date()) =>
 // Coaches who could take a block (or float it), best fit first: on shift
 // for the whole block, not booked or on break then, and furthest under
 // their target share for that kind of work.
+// Being off doesn't rule a coach out: a coach who isn't working then can
+// still take a block, and the minutes it adds to their day come back with
+// them (`addsMinutes`, `off`). Coaches already on shift rank first.
 export function coverCandidates(state, block, at = new Date(), { kind } = {}) {
-  const want = kind ?? (block.kind === "class" ? "class" : "open");
+  const want = kind ?? bucketOf(state, sessionFromId(state, block.id) ?? block);
   const pad = want === "floater" ? TRANSITION_MIN : 0;
   const b0 = toMinutes(block.start) - pad;
   const b1 = toMinutes(block.end) + pad;
-  return coaches
-    .map((s) => {
-      const shift = shiftOn(state, s.id, at);
-      if (!shift || toMinutes(shift.start) > b0 || toMinutes(shift.end) < b1)
-        return null;
-      const inBlock =
-        crewOn(state, block.index, at).some((c) => c.staffId === s.id) ||
-        floaterOn(state, block.index, at) === s.id;
-      const busy = commitments(state, s.id, at).some(
-        (c) =>
-          c.block.index !== block.index && overlaps(b0, b1, c.start, c.end),
-      );
-      const onBreak = breaksOn(state, at).some(
-        (x) =>
-          x.staffId === s.id &&
-          overlaps(b0, b1, toMinutes(x.start), toMinutes(x.end)),
-      );
-      if (inBlock || busy || onBreak) return null;
-      return { staff: s, gap: portfolioGap(state, s.id, at)[want] };
-    })
-    .filter(Boolean)
-    .sort((a, b) => b.gap - a.gap);
+  return (
+    coaches
+      .map((s) => {
+        const shift = shiftOn(state, s.id, at);
+        const s0 = shift ? toMinutes(shift.start) : null;
+        const s1 = shift ? toMinutes(shift.end) : null;
+        const covered = shift && s0 <= b0 && s1 >= b1;
+        const addsMinutes = covered
+          ? 0
+          : shift
+            ? Math.max(0, s0 - b0) + Math.max(0, b1 - s1)
+            : b1 - b0;
+        const inBlock =
+          crewOn(state, block.index, at).some((c) => c.staffId === s.id) ||
+          floaterOn(state, block.index, at) === s.id;
+        const busy = commitments(state, s.id, at).some(
+          (c) =>
+            c.block.index !== block.index && overlaps(b0, b1, c.start, c.end),
+        );
+        const onBreak = breaksOn(state, at).some(
+          (x) =>
+            x.staffId === s.id &&
+            overlaps(b0, b1, toMinutes(x.start), toMinutes(x.end)),
+        );
+        if (inBlock || busy || onBreak) return null;
+        const avail = availableFor(state, s.id, dayKey(at), b0, b1);
+        const band = hoursBand(
+          state,
+          s.id,
+          weekKeyOf(dayKey(at)),
+          addsMinutes / 60,
+        );
+        return {
+          staff: s,
+          gap: portfolioGap(state, s.id, at)[want] ?? 0,
+          off: !shift,
+          addsMinutes,
+          available: avail.ok,
+          why: avail.reason,
+          hours: band.hours,
+          overMax: band.status === "over" || band.status === "cap",
+        };
+      })
+      .filter(Boolean)
+      // Coaches who can work it and stay inside their hours come first.
+      .sort(
+        (a, b) =>
+          Number(!a.available) - Number(!b.available) ||
+          Number(a.overMax) - Number(b.overMax) ||
+          a.addsMinutes - b.addsMinutes ||
+          b.gap - a.gap,
+      )
+  );
 }
 
 /* ---------- Actions ---------- */
+
+// Give a coach working hours that reach a block they've just taken on.
+// A coach who was off gets the block (plus floater padding) as their day.
+function stretchShift(s, view, day, at, staffId, block, floater = false) {
+  const pad = floater ? TRANSITION_MIN : 0;
+  const b0 = toMinutes(block.start) - pad;
+  const b1 = toMinutes(block.end) + pad;
+  const shift = shiftOn(view, staffId, at);
+  const d = (s.days[day] ??= {});
+  d.off = (d.off ?? []).filter((id) => id !== staffId);
+  if (!d.off.length) delete d.off;
+  if (shift && toMinutes(shift.start) <= b0 && toMinutes(shift.end) >= b1)
+    return;
+  const start = shift ? Math.min(toMinutes(shift.start), b0) : b0;
+  const end = shift ? Math.max(toMinutes(shift.end), b1) : b1;
+  (d.hours ??= {})[staffId] = {
+    start: minutesToTime(start),
+    end: minutesToTime(end),
+  };
+}
 
 const touchDay = (s, day) => (s.days[day] ??= {});
 
@@ -634,7 +730,7 @@ export function applyStaffing(state, action, now = new Date()) {
   const at = action.day ? noonOf(day) : now;
   const view = () => ({ ...state, staffing: s });
   const blockAt = (index, when = at) => {
-    const b = sessions(when).find((x) => x.index === Number(index));
+    const b = sessions(when, view()).find((x) => x.index === String(index));
     if (!b) throw Error("Choose a block.");
     return b;
   };
@@ -670,12 +766,25 @@ export function applyStaffing(state, action, now = new Date()) {
     case "portfolio": {
       coach(action.staffId);
       self(action.staffId);
+      const list = modalitiesOf(state);
       const p = Object.fromEntries(
-        modalities.map((m) => [m.id, Number(action.portfolio?.[m.id])]),
+        list.map((m) => [m.id, Number(action.portfolio?.[m.id])]),
       );
-      const why = portfolioProblem(p, s.rules.minShare ?? MIN_SHARE);
+      const why = portfolioProblem(p, s.rules.minShare ?? MIN_SHARE, list);
       if (why) throw Error(why);
       s.portfolios[action.staffId] = p;
+      break;
+    }
+    // "I'd like to work this when it starts": a program that's coming soon.
+    case "interest": {
+      coach(action.staffId);
+      self(action.staffId);
+      if (!comingBuckets(state).some((b) => b.id === action.bucket))
+        throw Error("Choose a program that's coming soon.");
+      const mine = new Set(s.interest?.[action.staffId] ?? []);
+      if (action.on) mine.add(action.bucket);
+      else mine.delete(action.bucket);
+      (s.interest ??= {})[action.staffId] = [...mine];
       break;
     }
     case "shift": {
@@ -687,7 +796,78 @@ export function applyStaffing(state, action, now = new Date()) {
         action.start >= action.end
       )
         throw Error("Shifts need a start before the end.");
-      s.shifts[action.staffId] = { start: action.start, end: action.end };
+      const weekdays = action.weekdays ?? s.shifts[action.staffId]?.weekdays;
+      s.shifts[action.staffId] = {
+        start: action.start,
+        end: action.end,
+        ...(weekdays ? { weekdays: [...new Set(weekdays)].sort() } : {}),
+      };
+      break;
+    }
+    // A coach's own availability and the weekly hours they'd like.
+    case "availability": {
+      coach(action.staffId);
+      self(action.staffId);
+      const weekly = (action.weekly ?? []).map((w) => ({
+        weekday: Number(w.weekday),
+        start: w.start,
+        end: w.end,
+      }));
+      for (const w of weekly) {
+        if (!(w.weekday >= 1 && w.weekday <= 7)) throw Error("Pick a weekday.");
+        if (!validTime(w.start) || !validTime(w.end) || w.start >= w.end)
+          throw Error("Each day needs a start before the end.");
+      }
+      const num = (v) => (v === "" || v == null ? null : Number(v));
+      const min = num(action.minHours);
+      const max = num(action.maxHours);
+      for (const v of [min, max])
+        if (v != null && !(Number.isFinite(v) && v >= 0 && v <= 80))
+          throw Error("Weekly hours are 0 to 80.");
+      if (min != null && max != null && min > max)
+        throw Error("The minimum can't be more than the maximum.");
+      const a = (s.availability ??= {})[action.staffId] ?? {};
+      s.availability[action.staffId] = {
+        ...a,
+        weekly,
+        minHours: min,
+        maxHours: max,
+        updatedAt: new Date(now).toISOString(),
+      };
+      break;
+    }
+    case "unavailable": {
+      coach(action.staffId);
+      self(action.staffId);
+      const dayRe = /^\d{4}-\d{2}-\d{2}$/;
+      const to = action.to || action.from;
+      if (
+        !dayRe.test(action.from ?? "") ||
+        !dayRe.test(to ?? "") ||
+        to < action.from
+      )
+        throw Error("Pick the first and last day.");
+      const a = ((s.availability ??= {})[action.staffId] ??= {});
+      a.dated = [
+        ...(a.dated ?? []),
+        {
+          id: crypto.randomUUID(),
+          from: action.from,
+          to,
+          note: String(action.note ?? "")
+            .trim()
+            .slice(0, 140),
+        },
+      ].sort((x, y) => x.from.localeCompare(y.from));
+      break;
+    }
+    case "removeUnavailable": {
+      coach(action.staffId);
+      self(action.staffId);
+      const a = s.availability?.[action.staffId];
+      if (!a?.dated?.some((d) => d.id === action.id))
+        throw Error("That day is already cleared.");
+      a.dated = a.dated.filter((d) => d.id !== action.id);
       break;
     }
     case "floater": {
@@ -731,6 +911,7 @@ export function applyStaffing(state, action, now = new Date()) {
         ...crew,
         { staffId: action.staffId, role },
       ];
+      stretchShift(s, view(), day, at, action.staffId, b);
       break;
     }
     case "rules": {
@@ -759,6 +940,9 @@ export function applyStaffing(state, action, now = new Date()) {
       ])
         if (!Number.isInteger(r[k]) || r[k] < 1 || r[k] > 40)
           throw Error("Use whole numbers from 1 to 40.");
+      r.maxWeekly ??= 40;
+      if (!Number.isInteger(r.maxWeekly) || r.maxWeekly < 1 || r.maxWeekly > 80)
+        throw Error("The weekly cap is 1 to 80 hours.");
       if (![0, 1].includes(r.floaterPerClass))
         throw Error("Floater is on or off.");
       if (
@@ -770,10 +954,10 @@ export function applyStaffing(state, action, now = new Date()) {
       if (
         !Number.isInteger(r.minShare) ||
         r.minShare < 0 ||
-        r.minShare * modalities.length > 100
+        r.minShare * modalitiesOf(state).length > 100
       )
         throw Error(
-          `The minimum share is 0 to ${Math.floor(100 / modalities.length)}%.`,
+          `The minimum share is 0 to ${Math.floor(100 / modalitiesOf(state).length)}%.`,
         );
       s.rules = r;
       break;
@@ -790,6 +974,7 @@ export function applyStaffing(state, action, now = new Date()) {
     case "request": {
       coach(action.staffId);
       self(action.staffId);
+      if (day < dayKey(now)) throw Error("Pick today or a day ahead.");
       if (!requestKinds[action.kind]) throw Error("Choose what you need.");
       const req = {
         id: crypto.randomUUID(),
@@ -834,7 +1019,7 @@ export function applyStaffing(state, action, now = new Date()) {
             r.staffId === req.staffId &&
             r.kind === req.kind &&
             r.day === req.day &&
-            r.index === req.index,
+            String(r.index) === String(req.index),
         )
       )
         throw Error("You already asked for that.");
@@ -856,8 +1041,12 @@ export function applyStaffing(state, action, now = new Date()) {
           (c) => c.staff.id === actor.staffId,
         )
       )
-        throw Error(`You're busy or off during ${b.name}.`);
+        throw Error(`You're busy during ${b.name}.`);
       r.toStaffId = actor.staffId;
+      r.addsMinutes =
+        coverCandidates(view(), b, rAt, { kind }).find(
+          (c) => c.staff.id === actor.staffId,
+        )?.addsMinutes ?? 0;
       r.volunteered = true;
       break;
     }
@@ -895,11 +1084,15 @@ export function applyStaffing(state, action, now = new Date()) {
         }).some((c) => c.staff.id === to);
         if (!free)
           throw Error(`${staffName(to)} is busy or off during ${b.name}.`);
+        const before = view();
         if (asFloater) (d.floaters ??= {})[b.index] = to;
         else
-          (d.crew ??= {})[b.index] = crewOn(view(), b.index, rAt).map((c) =>
+          (d.crew ??= {})[b.index] = crewOn(before, b.index, rAt).map((c) =>
             c.staffId === r.staffId ? { ...c, staffId: to } : c,
           );
+        // A coach who was off, or whose hours didn't reach the block,
+        // now works it: their day grows to cover it.
+        stretchShift(s, before, r.day, rAt, to, b, asFloater);
         r.toStaffId = to;
       }
       if (r.kind === "timeoff")
@@ -928,7 +1121,7 @@ export const pendingRequests = (state) =>
 
 export function requestSummary(r) {
   if (r.kind === "cover") {
-    const b = sessions(noonOf(r.day)).find((x) => x.index === r.index);
+    const b = sessionFromId(null, `${r.day}:${r.index}`);
     return b ? `Cover ${b.name}, ${b.start}–${b.end}` : "Cover a block";
   }
   if (r.kind === "hours") return `Work ${r.start}–${r.end}`;

@@ -65,13 +65,15 @@ export function classToday(childId, at = new Date()) {
   const enrolled = kidInfo[childId]?.classes ?? [];
   return (
     sessions(at)
-      .filter((s) => s.kind === "class" && enrolled.includes(s.index))
+      .filter((s) => s.kind === "class" && enrolled.includes(String(s.index)))
       .find((s) => sessionPhase(s, at) !== "done") ?? null
   );
 }
 
-export const rosterFor = (sessionIndex) =>
-  people.filter((p) => kidInfo[p.id]?.classes.includes(sessionIndex));
+// Kids enrolled in a schedule block (pass the block id, or a session's
+// index, which is the same thing).
+export const rosterFor = (blockId) =>
+  people.filter((p) => kidInfo[p.id]?.classes.includes(String(blockId)));
 
 // Which skill category each station assesses.
 export const stationCategory = {

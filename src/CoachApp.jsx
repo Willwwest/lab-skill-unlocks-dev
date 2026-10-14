@@ -60,6 +60,7 @@ import {
 } from "./ds/index.jsx";
 import {
   clock,
+  dayKey,
   sessionPhase,
   sessions,
   stations,
@@ -145,6 +146,8 @@ import {
 } from "./Staffing.jsx";
 import { classCrew, groupLimit, withLevel } from "./staffing.js";
 import YourWeek from "./YourWeek.jsx";
+import BlockSchedule from "./BlockSchedule.jsx";
+import { scheduleOf, sessionFromId } from "./schedule.js";
 import { insights, kidVisits } from "./insights.js";
 import "./coach.css";
 import "./coachapp.css";
@@ -575,7 +578,7 @@ function rotationLabel(r) {
 function LivePill({ ops }) {
   const { state, me } = ops;
   const now = useNow(1000);
-  const live = sessions(now)
+  const live = sessions(now, ops.state)
     .map((b) => ({ b, run: runOf(state, b.id) }))
     .find(
       ({ run }) =>
@@ -648,7 +651,7 @@ function DayView({ ops }) {
   const { state, me, now } = ops;
   const [picking, setPicking] = useState(null);
   const mine = myBlocks(state, me.id, now);
-  const all = sessions(now).slice().sort(byStart);
+  const all = sessions(now, ops.state).slice().sort(byStart);
   const next =
     mine.find((b) => sessionPhase(b, now) === "live") ??
     mine.find((b) => sessionPhase(b, now) === "upcoming") ??
@@ -781,6 +784,11 @@ function DayView({ ops }) {
           note="Your blocks are highlighted. Tap one to start it."
         />
         <div className="cf-timeline">
+          {!all.length && (
+            <Empty icon={CalendarDays} title="The gym is closed today">
+              Nothing is on the schedule.
+            </Empty>
+          )}
           {all.map((b) => {
             const crew = classCrew(state, b, now);
             const role = crew.find((c) => c.staffId === me.id)?.role;
@@ -3376,7 +3384,7 @@ function DeskTab({ ops }) {
   const { state, now } = ops;
   const rows = deskIssues(state, now);
   const name = (sid) =>
-    sessions(now).find((s) => s.id === sid)?.name ?? "Earlier";
+    sessions(now, ops.state).find((s) => s.id === sid)?.name ?? "Earlier";
   return (
     <section className="card cf-panel">
       <h3>Today · {rows.length}</h3>
@@ -3521,7 +3529,12 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 function PlansTab({ ops }) {
   const { state, now, me } = ops;
-  const blocks = sessions(now).slice().sort(byStart);
+  // Every block on the weekly template, not just today's: a class that
+  // doesn't run today can still be planned and staffed.
+  const blocks = scheduleOf(state)
+    .blocks.filter((b) => !b.effectiveUntil || b.effectiveUntil >= dayKey(now))
+    .map((b) => sessionFromId(state, `${dayKey(now)}:${b.id}`))
+    .sort(byStart);
   const canPlanFor = (b) =>
     b.kind === "class" && (me.head || leadOf(state, b.index) === me.id);
   const [pick, setPick] = useState(
@@ -3600,6 +3613,7 @@ function PlansTab({ ops }) {
       </nav>
       <BlockEditor
         key={block.id}
+        ops={ops}
         block={block}
         draft={draftOf(block)}
         edit={edit}
@@ -3640,7 +3654,7 @@ function CoachStack({ crew, size = 30 }) {
   );
 }
 
-function BlockEditor({ block, draft, edit, canCrew, canPlan }) {
+function BlockEditor({ ops, block, draft, edit, canCrew, canPlan }) {
   const { crew, plan } = draft;
   const isClass = block.kind === "class";
   const length = toMinutes(block.end) - toMinutes(block.start);
@@ -3689,6 +3703,8 @@ function BlockEditor({ block, draft, edit, canCrew, canPlan }) {
         canCrew={canCrew}
         onChange={(next) => edit({ crew: next })}
       />
+
+      <BlockSchedule ops={ops} block={block} />
 
       {isClass && (
         <ClassShape
@@ -4245,7 +4261,7 @@ export default function CoachApp({
     [setState],
   );
   const block = view.session
-    ? sessions(now).find((s) => s.id === view.session)
+    ? sessions(now, state).find((s) => s.id === view.session)
     : null;
   // A saved view from another day goes back to Today.
   useEffect(() => {
@@ -4278,7 +4294,7 @@ export default function CoachApp({
   const floorBlock =
     mine.find((b) => sessionPhase(b, now) === "live") ??
     mine.find((b) => sessionPhase(b, now) === "upcoming") ??
-    sessions(now).find((b) => sessionPhase(b, now) === "live") ??
+    sessions(now, state).find((b) => sessionPhase(b, now) === "live") ??
     null;
   const floorRole = floorBlock
     ? (floorBlock.role ?? (floorBlock.kind === "class" ? "head" : "attendant"))

@@ -542,3 +542,127 @@
 .st-crew-mark small {
   font-size: inherit;
 }
+
+/* Programs added after the three built-in kinds of work. */
+.st-bucket-x0 {
+  --st: var(--ds-gold);
+}
+.st-bucket-x1 {
+  --st: var(--ds-royal-deep);
+}
+.st-bucket-x2 {
+  --st: var(--ds-mint);
+}
+.st-wants {
+  display: grid;
+  gap: var(--ds-space-2);
+}
+.st-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2);
+}
+.st-programs {
+  display: grid;
+  gap: var(--ds-space-3);
+  margin: 0 0 var(--ds-space-4);
+  padding: 0;
+  list-style: none;
+}
+.st-programs li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-2) var(--ds-space-4);
+}
+.st-program-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2);
+  align-items: center;
+}
+.st-program-input {
+  flex: 1 1 220px;
+  min-width: 0;
+  min-height: var(--ds-target);
+}
+
+/* Availability */
+.av-range {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-4);
+}
+.av-stepper {
+  display: grid;
+  gap: var(--ds-space-1);
+}
+.av-days {
+  display: grid;
+  gap: var(--ds-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.av-days li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-2) var(--ds-space-3);
+}
+.av-days li > b {
+  flex: 0 0 110px;
+}
+.av-times {
+  display: flex;
+  gap: var(--ds-space-2);
+}
+.av-away {
+  display: grid;
+  gap: var(--ds-space-2);
+  margin: 0 0 var(--ds-space-3);
+  padding: 0;
+  list-style: none;
+}
+.av-away li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-2) var(--ds-space-3);
+}
+.av-away small {
+  color: var(--ds-text-3);
+}
+.av-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--ds-space-3);
+}
+.av-note {
+  min-height: var(--ds-target);
+  min-width: 0;
+}
+.av-team {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
+  gap: var(--ds-space-3);
+}
+.av-coach {
+  display: grid;
+  gap: var(--ds-space-2);
+}
+.av-coach-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-2);
+}
+.av-hours {
+  margin: 0;
+  font-size: var(--ds-text-body);
+}
+.av-hours small {
+  color: var(--ds-text-3);
+}

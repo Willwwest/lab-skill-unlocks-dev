@@ -395,7 +395,7 @@ test("a coach's day lists only the blocks they work", () => {
   const mine = myBlocks(base(), "priya", now);
   assert.deepEqual(
     mine.map((b) => b.index),
-    [4, 2, 0, 1],
+    ["4", "2", "0", "1"],
   );
   assert.equal(mine[0].role, "station");
 });

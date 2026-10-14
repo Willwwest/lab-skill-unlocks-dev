@@ -240,6 +240,32 @@ async function seedDesk(page) {
   await context.close();
 }
 
+// A closed day (a holiday on the schedule): both screens say so.
+{
+  const { context, page, h } = await kit.page("tv", { label: "closed" });
+  await seed(page);
+  await page.evaluate(async () => {
+    const sc = await import("/src/schedule.js");
+    const c = await import("/src/club.js");
+    const s = JSON.parse(localStorage.getItem("lab-skill-unlocks-v1"));
+    s.schedule = { ...sc.seedSchedule(), exceptions: [{ id: "x1", day: c.dayKey(new Date()), kind: "closed", note: "Holiday" }] };
+    localStorage.setItem("lab-skill-unlocks-v1", JSON.stringify(s));
+  });
+  await h.step("the desk screen says closed today and when it reopens", async () => {
+    await page.goto(`${BASE}?tv=desk&at=13:00`);
+    await page.locator(".dtv-closed", { hasText: "Closed today" }).waitFor();
+    await page.getByText("Open again tomorrow at 10:00.").waitFor();
+    await page.getByText("The gym is closed today.").waitFor();
+  });
+  await h.shot("desk", { full: false });
+  await h.step("the floor board says closed today", async () => {
+    await page.goto(`${BASE}?tv&at=13:00`);
+    await page.getByRole("heading", { name: "Closed today" }).waitFor();
+    await page.getByText("Open again tomorrow at 10:00.").waitFor();
+  });
+  await context.close();
+}
+
 // The demo day: pause it, jump the timeline to each moment, check the line.
 {
   const { context, page, h } = await kit.page("tv", { label: "demo" });

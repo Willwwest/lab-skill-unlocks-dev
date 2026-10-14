@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { clock } from "./club.js";
+import { clock, sessions } from "./club.js";
 import { GYM_TIME_ZONE, gymClockTime, gymFullDay } from "./gym-time.js";
 import { floorStatus, layoutOf } from "./layout.js";
 import { plain } from "./skillcopy.js";
@@ -9,6 +9,8 @@ import { useNow } from "./tvkit.js";
 import { demoState } from "./demoday.js";
 import DemoBar from "./DemoBar.jsx";
 import {
+  nextOpening,
+  openAgain,
   earnNow,
   todaySchedule,
   weeklyCrowns,
@@ -24,8 +26,15 @@ const weekday = new Intl.DateTimeFormat("en-US", {
   weekday: "short",
 });
 
-function Schedule({ blocks }) {
+function Schedule({ blocks, closed }) {
   const next = blocks.find((b) => b.phase === "upcoming");
+  if (closed)
+    return (
+      <div className="dtv-closed">
+        <strong>Closed today</strong>
+        <span>{closed}</span>
+      </div>
+    );
   return (
     <ol className="dtv-schedule">
       {blocks.map((b) => {
@@ -61,11 +70,13 @@ function Moves({ items, status }) {
     const nextOpen = status.next.find((b) => b.kind === "open");
     return (
       <p className="dtv-empty">
-        {!status.hours.open
-          ? "Points open up when the gym does."
-          : nextOpen
-            ? `Everything is in class right now. Open gym starts at ${clock(nextOpen.start)}.`
-            : "Everything is in class right now."}
+        {status.hours.closedToday
+          ? "The gym is closed today."
+          : !status.hours.open
+            ? "Points open up when the gym does."
+            : nextOpen
+              ? `Everything is in class right now. Open gym starts at ${clock(nextOpen.start)}.`
+              : "Everything is in class right now."}
       </p>
     );
   }
@@ -132,7 +143,7 @@ function Shoutouts({ list }) {
  * families opted in. ?view=top shows the map overhead; ?at=15:40 previews.
  */
 export default function DeskTV({ state: stored }) {
-  const { now, preview, demo } = useNow();
+  const { now, preview, demo } = useNow(stored);
   // ?demo shows the scripted day, built in memory; nothing is saved.
   const state = useMemo(
     () => (demo ? demoState(stored, demo.day, demo.minute) : stored),
@@ -176,7 +187,14 @@ export default function DeskTV({ state: stored }) {
   return (
     <main className="dtv">
       <FloorMap layout={layout} status={status} view={view} className="dtv-map">
-        {demo && <DemoBar demo={demo} status={status} now={now} />}
+        {demo && (
+          <DemoBar
+            demo={demo}
+            status={status}
+            now={now}
+            blocks={sessions(now, state)}
+          />
+        )}
       </FloorMap>
       <section
         className="dtv-strip"
@@ -207,7 +225,12 @@ export default function DeskTV({ state: stored }) {
           </span>
         </header>
         <h2 className="ftv-eyebrow dtv-today">Today</h2>
-        <Schedule blocks={todaySchedule(state, now)} />
+        <Schedule
+          blocks={todaySchedule(state, now)}
+          closed={
+            status.hours.closedToday && openAgain(nextOpening(state, now))
+          }
+        />
       </aside>
     </main>
   );

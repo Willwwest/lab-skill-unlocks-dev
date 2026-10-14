@@ -15,6 +15,8 @@ import { countdown, photoUrl, useNow } from "./tvkit.js";
 import { demoState } from "./demoday.js";
 import DemoBar from "./DemoBar.jsx";
 import { canMarkUse } from "./flooruse.js";
+import { scheduleOf } from "./schedule.js";
+import { nextOpening, openAgain } from "./tvs.js";
 import "./ds/tokens.css";
 import "./floortv.css";
 
@@ -92,7 +94,7 @@ function Featured({ zone }) {
   );
 }
 
-function Rail({ status, now, featured }) {
+function Rail({ status, now, featured, reopen }) {
   const stationZones = status.zones.filter((z) => z.station);
   const open = stationZones.filter((z) => z.status === "open");
   const paused = stationZones.filter((z) => z.status === "paused");
@@ -108,11 +110,11 @@ function Rail({ status, now, featured }) {
       {!status.hours.open && (
         <div className="ftv-block">
           <h2 className="ftv-eyebrow">Now</h2>
-          <h3>Closed</h3>
+          <h3>{status.hours.closedToday ? "Closed today" : "Closed"}</h3>
           <p>
             {status.next[0]
               ? `Doors open at ${clock(status.next[0].start)}.`
-              : "See you tomorrow."}
+              : reopen}
           </p>
         </div>
       )}
@@ -214,7 +216,7 @@ function Rail({ status, now, featured }) {
 export default function FloorTV({ state: stored, setState, session, onExit }) {
   const owner = session?.kind === "staff" && !!session.owner;
   const map = useRef(null);
-  const { now, preview, demo } = useNow();
+  const { now, preview, demo } = useNow(stored);
   // ?demo shows the scripted day, built in memory; nothing is saved.
   const state = useMemo(
     () => (demo ? demoState(stored, demo.day, demo.minute) : stored),
@@ -236,8 +238,8 @@ export default function FloorTV({ state: stored, setState, session, onExit }) {
   // Owners, the gym manager and each class's head coach mark floor use.
   const marksUse =
     session?.kind === "staff" &&
-    sessions(now).some(
-      (b) => b.kind === "class" && canMarkUse(stored, actor, b.index),
+    scheduleOf(stored).blocks.some(
+      (b) => b.kind === "class" && canMarkUse(stored, actor, b.id),
     );
   const [view, setView] = useState(startView);
   const [feature, setFeature] = useState(0);
@@ -336,7 +338,14 @@ export default function FloorTV({ state: stored, setState, session, onExit }) {
         onPick={setHeld}
         apiRef={map}
       >
-        {demo && <DemoBar demo={demo} status={status} now={now} />}
+        {demo && (
+          <DemoBar
+            demo={demo}
+            status={status}
+            now={now}
+            blocks={sessions(now, state)}
+          />
+        )}
         <div
           className={`ftv-tools${chrome || onExit ? " is-on" : ""}${onExit ? " is-embedded" : ""}`}
         >
@@ -394,7 +403,12 @@ export default function FloorTV({ state: stored, setState, session, onExit }) {
           )}
         </div>
       </FloorMap>
-      <Rail status={status} now={now} featured={featured} />
+      <Rail
+        status={status}
+        now={now}
+        featured={featured}
+        reopen={openAgain(nextOpening(state, now))}
+      />
       <div className="sr-only" aria-live="polite">
         {status.zones
           .filter((z) => z.station)
